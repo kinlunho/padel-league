@@ -5,3 +5,4 @@ node_modules/
 .env.local
 firebase-config.local.js
 src/firebase-config.js
+service-account.json
