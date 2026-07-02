@@ -17,7 +17,6 @@
 //   become async reads instead, with no change needed to callers.
 
 // ════════ FIREBASE INIT ════════
-// firebaseConfig loaded from src/firebase-config.js (gitignored)
 const firebaseApp  = firebase.initializeApp(firebaseConfig);
 const firebaseAuth = firebase.auth();
 
@@ -59,7 +58,6 @@ async function resolveIdentity(firebaseUser){
 
   S.userEmail = firebaseUser.email;
 
-  // Force-refresh token to get latest custom claims without requiring re-login
   const tokenResult = await firebaseUser.getIdTokenResult(true);
   const role = tokenResult.claims.role || 'viewer';
   S.isAdmin   = role === 'admin';
@@ -123,11 +121,12 @@ function applyRoleGating(){
   }
 }
 
-// ════════ AUTH GATE ACTIONS (called from index.html buttons) ════════
+// ════════ AUTH GATE ACTIONS ════════
 function openSignIn(){
   const email    = document.getElementById('signin-email').value.trim();
   const password = document.getElementById('signin-password').value;
   const errEl    = document.getElementById('signin-error');
+  errEl.style.color = '#f87171';
   errEl.textContent = '';
   if (!email || !password){ errEl.textContent = 'Enter your email and password.'; return; }
   firebaseAuth.signInWithEmailAndPassword(email, password)
@@ -140,8 +139,36 @@ function openSignIn(){
 }
 function handleSignOut(){ firebaseAuth.signOut(); }
 
+function showResetView(){
+  document.getElementById('auth-signin-view').style.display = 'none';
+  document.getElementById('auth-reset-view').style.display  = '';
+  document.getElementById('reset-email').value = document.getElementById('signin-email').value;
+  document.getElementById('reset-msg').textContent = '';
+}
+function showSignInView(){
+  document.getElementById('auth-reset-view').style.display  = 'none';
+  document.getElementById('auth-signin-view').style.display = '';
+  document.getElementById('signin-error').textContent = '';
+}
+function sendResetEmail(){
+  const email = document.getElementById('reset-email').value.trim();
+  const msgEl = document.getElementById('reset-msg');
+  msgEl.style.color = '#f87171';
+  msgEl.textContent = '';
+  if (!email){ msgEl.textContent = 'Enter your email address.'; return; }
+  firebaseAuth.sendPasswordResetEmail(email)
+    .then(() => {
+      msgEl.style.color = '#4ade80';
+      msgEl.textContent = 'Reset link sent — check your inbox (and spam folder).';
+    })
+    .catch(err => {
+      msgEl.textContent = err.code === 'auth/user-not-found'
+        ? 'No account found for that email.'
+        : err.message;
+    });
+}
+
 // ════════ DEV FLAG ════════
-// Keep this const before the if blocks so both branches can read it.
 const IS_LOCAL_DEV = location.protocol === 'file:' || location.hostname === 'localhost';
 
 // ════════ PRODUCTION: Firebase Auth state listener ════════
@@ -161,8 +188,6 @@ if (!IS_LOCAL_DEV){
 }
 
 // ════════ LOCAL DEV MODE ════════
-// Bypasses Firebase Auth when running from file:// or localhost.
-// Remove this entire block before going live.
 if (IS_LOCAL_DEV){
   S.devRole   = 'admin';
   S.devTeamId = null;

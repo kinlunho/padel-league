@@ -18,11 +18,25 @@
     <div class="auth-logo">GO PARK Sports × The One</div>
     <div class="auth-title">Padel <span>Summer</span> League 2026</div>
     <div class="auth-dates">11 July – 4 October 2026</div>
-    <input class="form-input" id="signin-email" type="email" placeholder="Email address" style="margin-bottom:10px;">
-    <input class="form-input" id="signin-password" type="password" placeholder="Password" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')openSignIn()">
-    <button class="auth-btn" onclick="openSignIn()">Sign In to League Portal</button>
-    <p id="signin-error" style="color:#f87171;font-size:12px;margin-top:10px;min-height:18px;"></p>
-    <p class="auth-note">Access is by invitation only.<br>Your coach will email you a password when you are added to the system.</p>
+
+    <!-- Sign-in view -->
+    <div id="auth-signin-view">
+      <input class="form-input" id="signin-email" type="email" placeholder="Email address" style="margin-bottom:10px;">
+      <input class="form-input" id="signin-password" type="password" placeholder="Password" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')openSignIn()">
+      <button class="auth-btn" onclick="openSignIn()">Sign In to League Portal</button>
+      <p id="signin-error" style="color:#f87171;font-size:12px;margin-top:10px;min-height:16px;"></p>
+      <p style="font-size:11px;margin-top:4px;"><span onclick="showResetView()" style="color:#4383fa;cursor:pointer;text-decoration:underline;">Forgot password?</span></p>
+      <p class="auth-note">Access is by invitation only.<br>Your coach will email you a password when you are added to the system.</p>
+    </div>
+
+    <!-- Password reset view -->
+    <div id="auth-reset-view" style="display:none;">
+      <p style="font-size:13px;color:#c0ccda;margin-bottom:14px;">Enter your email and we'll send a reset link.</p>
+      <input class="form-input" id="reset-email" type="email" placeholder="Email address" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')sendResetEmail()">
+      <button class="auth-btn" onclick="sendResetEmail()">Send Reset Link</button>
+      <p id="reset-msg" style="font-size:12px;margin-top:10px;min-height:16px;"></p>
+      <p style="font-size:11px;margin-top:4px;"><span onclick="showSignInView()" style="color:#4383fa;cursor:pointer;text-decoration:underline;">← Back to sign in</span></p>
+    </div>
   </div>
 </div>
 
