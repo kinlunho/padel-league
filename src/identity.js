@@ -137,7 +137,17 @@ function openSignIn(){
           : err.message;
     });
 }
-function handleSignOut(){ firebaseAuth.signOut(); }
+function handleSignOut(){
+  if (IS_LOCAL_DEV){
+    // In dev mode the auth listener isn't running, so manually reset state
+    S.devRole = 'admin';
+    S.devTeamId = null;
+    hideApp();
+    setNavUser(null);
+    return;
+  }
+  firebaseAuth.signOut();
+}
 
 function showResetView(){
   document.getElementById('auth-signin-view').style.display = 'none';
