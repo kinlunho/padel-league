@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function role() {
+      return request.auth.token.role;
+    }
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+    function isCaptain() {
+      return isSignedIn() && role() == 'captain';
+    }
+    function isViewer() {
+      return isSignedIn();  // any signed-in user can read
+    }
+
+    // ── /teams ────────────────────────────────────────────────────────
+    // Any signed-in user can read team names and groups (needed for standings).
+    // Only admins can create or delete teams.
+    // Captains can update their OWN team's roster — enforced by checking the
+    // user's teamId claim against the document being written.
+    match /teams/{teamId} {
+      allow read: if isViewer();
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
+        (isCaptain() && request.auth.token.teamId == teamId);
+      allow delete: if isAdmin();
+    }
+
+    // ── /teams/{teamId}/roster ────────────────────────────────────────
+    // Phone numbers and claim codes live here — readable only by admins
+    // and the team's own captain. Other captains and plain viewers cannot
+    // see other teams' player phone numbers.
+    match /teams/{teamId}/roster/{playerId} {
+      allow read: if isAdmin() ||
+        (isCaptain() && request.auth.token.teamId == teamId);
+      allow write: if isAdmin() ||
+        (isCaptain() && request.auth.token.teamId == teamId);
+    }
+
+    // ── /matches ─────────────────────────────────────────────────────
+    // Any signed-in user can read all matches (needed for standings and schedule).
+    // Admins can write anything.
+    // Captains can only update matches they are party to — t1 or t2 must be
+    // their team. They cannot create or delete matches (admin only).
+    match /matches/{matchId} {
+      allow read: if isViewer();
+      allow create: if isAdmin();
+      allow update: if isAdmin() ||
+        (isCaptain() &&
+         (resource.data.t1 == request.auth.token.teamId ||
+          resource.data.t2 == request.auth.token.teamId));
+      allow delete: if isAdmin();
+    }
+
+    // ── /users ───────────────────────────────────────────────────────
+    // Users can read and update their own profile (e.g. claim a roster slot).
+    // Admins can read and write all user profiles (for role assignment).
+    // No user can read another user's profile — prevents email harvesting.
+    match /users/{uid} {
+      allow read, write: if isAdmin() || request.auth.uid == uid;
+    }
+
+    // ── /knockouts ───────────────────────────────────────────────────
+    // Any signed-in user can read knockout state.
+    // Only admins can write knockout results.
+    match /knockouts/{docId} {
+      allow read: if isViewer();
+      allow write: if isAdmin();
+    }
+  }
+}

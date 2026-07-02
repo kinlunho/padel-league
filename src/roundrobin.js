@@ -24,21 +24,26 @@ function generateRoundRobinPairs(teamIds){
   return rounds;
 }
 
-function generateFixtures(group){
+async function generateFixtures(group){
   const existing=Object.values(S.matches).filter(m=>m.group===group&&m.round);
   if(existing.length){showToast('Fixtures already generated for this group',true);return;}
   const teams=teamsByGroup(group);
   if(teams.length<3){showToast('Need at least 3 teams to generate fixtures',true);return;}
   const rounds=generateRoundRobinPairs(teams.map(t=>t.id));
+  const allMatches={};
   rounds.forEach((pairs,ri)=>{
     pairs.forEach(([t1,t2])=>{
       const id=uid();
-      S.matches[id]={id,group,t1,t2,date:null,time:null,court:null,round:ri+1,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
+      allMatches[id]={id,group,t1,t2,date:null,time:null,court:null,round:ri+1,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
     });
   });
-  addLog(`Fixtures generated for ${group}: ${rounds.flat().length} matches across ${rounds.length} rounds`,'var(--brand)');
-  showToast(`${rounds.flat().length} fixtures generated across ${rounds.length} rounds`);
-  renderMatchesList(group);
+  try {
+    await MatchesDB.seedAll(allMatches);
+    addLog(`Fixtures generated for ${group}: ${Object.keys(allMatches).length} matches across ${rounds.length} rounds`,'var(--brand)');
+    showToast(`${Object.keys(allMatches).length} fixtures generated across ${rounds.length} rounds`);
+  } catch(err){
+    showToast('Failed to generate fixtures: ' + err.message, true);
+  }
 }
 
 // Round-gating was removed entirely (previously: isTeamClearedThroughRound/isMatchOpen).

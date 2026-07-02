@@ -10,7 +10,7 @@ function openClaimSlot(matchId){
   openModal('claimSlotModal');
 }
 
-function confirmClaimSlot(){
+async function confirmClaimSlot(){
   const id=S.editMatchId;
   const m=S.matches[id];
   const date=document.getElementById('claim-date').value;
@@ -22,57 +22,27 @@ function confirmClaimSlot(){
     document.getElementById('claim-conflict').textContent=`⚠ Court ${court} at ${time} already booked by ${tn(conflict.t1)} vs ${tn(conflict.t2)}`;
     return;
   }
-  S.matches[id]={...m,date,time,court,status:'scheduled'};
-  addLog(`Slot claimed: ${tn(m.t1)} vs ${tn(m.t2)} (${m.group}, Round ${m.round}) → ${date} ${time}`,'var(--brand)');
-  closeModal('claimSlotModal');
-  showToast('Slot claimed!');
-  renderMatchesList(m.group);
+  try {
+    await MatchesDB.update(id,{date,time,court,status:'scheduled'});
+    addLog(`Slot claimed: ${tn(m.t1)} vs ${tn(m.t2)} (${m.group}, Round ${m.round}) → ${date} ${time}`,'var(--brand)');
+    closeModal('claimSlotModal');
+    showToast('Slot claimed!');
+  } catch(err){ showToast('Failed to claim slot: ' + err.message, true); }
 }
 
-// Clicking an empty court slot. Admin gets the full free-form scheduler prefilled with this
-// date/time/court. A captain gets a narrower picker limited to their own team's open-round
-// fixtures — they can't schedule anyone else's match by clicking a slot.
-function openQuickSchedule(date,time,court){
-  if(isAdminUser()){
-    populateSchGroups();
-    openModal('scheduleModal');
-    document.getElementById('sch-date').value=date;
-    document.getElementById('sch-time').value=time;
-    document.getElementById('sch-court').value=court;
-    return;
-  }
-  if(!isCaptainUser()||!S.myTeamId){
-    showToast('No team linked to your account — contact an admin',true);
-    return;
-  }
-  const eligible=Object.values(S.matches).filter(m=>
-    m.status==='unclaimed' &&
-    (m.t1===S.myTeamId||m.t2===S.myTeamId)
-  );
-  if(!eligible.length){
-    showToast('No unplayed opponents remain for your team in this division',true);
-    return;
-  }
-  S.quickScheduleTarget={date,time,court};
-  document.getElementById('quick-fixture-select').innerHTML=eligible.map(m=>
-    `<option value="${m.id}">${tn(m.t1)} vs ${tn(m.t2)} (${m.group}, Round ${m.round})</option>`
-  ).join('');
-  document.getElementById('quick-slot-info').innerHTML=`📅 ${date} · 🕖 ${time} · Court ${court}`;
-  openModal('quickScheduleModal');
-}
-
-function confirmQuickSchedule(){
+async function confirmQuickSchedule(){
   const matchId=document.getElementById('quick-fixture-select').value;
   const {date,time,court}=S.quickScheduleTarget;
   const m=S.matches[matchId];
   const conflict=Object.values(S.matches).find(x=>x.id!==matchId&&x.date===date&&x.time===time&&x.court===court);
   if(conflict){showToast('That slot was just taken by another match',true);return;}
-  S.matches[matchId]={...m,date,time,court,status:'scheduled'};
-  addLog(`Slot claimed via quick-schedule: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time}`,'var(--brand)');
-  closeModal('quickScheduleModal');
-  showToast('Slot claimed!');
-  renderSchedulePage();
-  if(document.querySelector('.page.active').id==='page-matches') renderMatchesList(m.group);
+  try {
+    await MatchesDB.update(matchId,{date,time,court,status:'scheduled'});
+    addLog(`Slot claimed via quick-schedule: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time}`,'var(--brand)');
+    closeModal('quickScheduleModal');
+    showToast('Slot claimed!');
+  } catch(err){ showToast('Failed to claim slot: ' + err.message, true); }
+}
 }
 
 

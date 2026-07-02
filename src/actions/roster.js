@@ -128,9 +128,13 @@ function confirmReschedule(){
   const conflict=Object.values(S.matches).find(m=>m.id!==id&&m.date===date&&m.time===time&&m.court===court);
   if(conflict){showToast('That slot is already booked!',true);return;}
   const m=S.matches[id];
-  S.matches[id]={...m,date,time,court,status:'scheduled',scoreData:null,submittedBy:null};
-  addLog(`Rescheduled: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time}`,'var(--muted)');
-  closeModal('rescheduleModal');showToast('Rescheduled!');
-  renderPage(document.querySelector('.page.active').id.replace('page-',''));
+  try {
+    await MatchesDB.update(id,{date,time,court,status:'scheduled',scoreData:null,submittedBy:null});
+    addLog(`Rescheduled: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time}`,'var(--muted)');
+    closeModal('rescheduleModal');
+    showToast('Rescheduled!');
+  } catch(err){
+    showToast('Failed to reschedule: ' + err.message, true);
+  }
 }
 

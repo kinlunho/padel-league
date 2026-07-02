@@ -57,7 +57,7 @@ function addPlayerField(){
   if(count+1>=5) document.getElementById('add-player-btn').style.display='none';
 }
 
-function registerTeam(){
+async function registerTeam(){
   if(!isRegistrationOpen()&&!isAdminUser()){
     showToast(`Registration closed ${REGISTRATION_CUTOFF} — contact an admin for late additions`,true);
     return;
@@ -69,26 +69,31 @@ function registerTeam(){
   const players=[...rows].map(row=>{
     const inputs=row.querySelectorAll('input');
     return {pid:uid(), name:inputs[0].value.trim(), phone:inputs[1].value.trim(), claimCode:genClaimCode(), claimedByEmail:null};
-  }).filter(p=>p.name); // a row only counts if the name was filled in; phone is optional
+  }).filter(p=>p.name);
   if(!name||!email){showToast('Name and email required',true);return;}
   if(players.length<2){showToast('Minimum 2 players required',true);return;}
-  const id=uid();
-  S.teams[id]={id,name,email,group,players};
+
   const fixturesAlreadyExist=Object.values(S.matches).some(m=>m.group===group&&m.round);
-  addLog(`${name} registered in ${group}`+(fixturesAlreadyExist?' (after fixtures generated — no auto matches)':''),'var(--accent)');
-  closeModal('registerModal');
-  if(fixturesAlreadyExist){
-    showToast(`${name} added — but ${group} fixtures were already generated. This team has NO matches yet; schedule them manually.`,true);
-  } else {
-    showToast(`${name} registered!`);
+  try {
+    await TeamsDB.save({name,email,group,players});
+    addLog(`${name} registered in ${group}`+(fixturesAlreadyExist?' (after fixtures generated — no auto matches)':''),'var(--accent)');
+    closeModal('registerModal');
+    if(fixturesAlreadyExist){
+      showToast(`${name} added — but ${group} fixtures already exist. Schedule their matches manually.`,true);
+    } else {
+      showToast(`${name} registered!`);
+    }
+  } catch(err){
+    showToast('Failed to register team: ' + err.message, true);
+    return;
   }
   document.getElementById('reg-name').value='';document.getElementById('reg-email').value='';
   document.getElementById('reg-player-fields').innerHTML=`<div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div><div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>`;
   document.getElementById('add-player-btn').style.display='';
-  renderHome();
+  // No renderHome() needed — TeamsDB.subscribe's onSnapshot fires automatically
 }
 
-function scheduleMatch(){
+async function scheduleMatch(){
   const group=document.getElementById('sch-group').value;
   const t1=document.getElementById('sch-t1').value;
   const t2=document.getElementById('sch-t2').value;
@@ -103,9 +108,14 @@ function scheduleMatch(){
     return;
   }
   document.getElementById('sch-conflict').style.display='none';
-  const id=uid();
-  S.matches[id]={id,group,t1,t2,date,time,court,status:'scheduled',scoreData:null,submittedBy:null,notes:''};
-  addLog(`Match scheduled: ${tn(t1)} vs ${tn(t2)} (${group}) on ${date}`,'var(--blue)');
-  closeModal('scheduleModal');showToast('Match scheduled!');renderSchedulePage();
+  try {
+    await MatchesDB.save({group,t1,t2,date,time,court,status:'scheduled',scoreData:null,submittedBy:null,notes:''});
+    addLog(`Match scheduled: ${tn(t1)} vs ${tn(t2)} (${group}) on ${date}`,'var(--blue)');
+    closeModal('scheduleModal');
+    showToast('Match scheduled!');
+    // renderSchedulePage() not needed — MatchesDB.subscribe onSnapshot fires automatically
+  } catch(err){
+    showToast('Failed to schedule match: ' + err.message, true);
+  }
 }
 

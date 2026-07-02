@@ -150,71 +150,57 @@ function submitScore(){
     closeModal('scoreModal');showToast('Final result recorded! 🏆');renderKnockoutPage();return;
   }
 
-  // Admin resolving a dispute: finalize immediately as confirmed, no opponent handshake.
+  // Admin resolving a dispute
   if(S.resolvingDispute){
     const m=S.matches[S.editMatchId];
-    S.matches[S.editMatchId]={...m,scoreData:sd,status:'confirmed',notes};
     const r=calcResult(sd);
     const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
+    await MatchesDB.update(S.editMatchId,{scoreData:sd,status:'confirmed',notes});
     addLog(`⚖ Dispute resolved by admin: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,'var(--gold)');
     S.resolvingDispute=false;
     closeModal('scoreModal');
     showToast('Dispute resolved — score confirmed');
-    renderPage(document.querySelector('.page.active').id.replace('page-',''));
     return;
   }
 
   const m=S.matches[S.editMatchId];
   const wasConfirm=m.status==='pending-confirm';
 
-  // Admin submitting a fresh score is treated as authoritative entry, same logic as dispute
-  // resolution — the coach is the final arbiter per the published rules, so there's no
-  // opposing-captain handshake to wait on. This only applies to a FIRST submission; if a
-  // match is already pending-confirm, fall through to the normal confirm/self-confirm-block
-  // path below so admin still goes through the explicit "who confirms" check.
+  // Admin fresh entry — authoritative, no handshake
   if(isAdminUser()&&!wasConfirm){
-    S.matches[S.editMatchId]={...m,scoreData:sd,status:'confirmed',submittedBy:'admin',notes};
     const r=calcResult(sd);
     const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
+    await MatchesDB.update(S.editMatchId,{scoreData:sd,status:'confirmed',submittedBy:'admin',notes});
     addLog(`Score entered by admin: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,'var(--gold)');
     closeModal('scoreModal');
     showToast('Score entered and confirmed (admin entry)');
-    renderPage(document.querySelector('.page.active').id.replace('page-',''));
     return;
   }
 
-  // A captain's fresh submission records THEIR actual team, not an assumed t1. This is what
-  // confirmScore() checks against to block the submitter from confirming their own score —
-  // that check is meaningless if submittedBy doesn't reflect who really submitted.
   const realSubmitter=wasConfirm?m.submittedBy:(isCaptainUser()?S.myTeamId:m.t1);
-  S.matches[S.editMatchId]={...m,scoreData:sd,status:wasConfirm?'confirmed':'pending-confirm',submittedBy:realSubmitter,notes};
+  await MatchesDB.update(S.editMatchId,{scoreData:sd,status:wasConfirm?'confirmed':'pending-confirm',submittedBy:realSubmitter,notes});
   const r=calcResult(sd);
   const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
   addLog(`Score ${wasConfirm?'confirmed':'submitted'}: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,wasConfirm?'var(--accent)':'var(--warn)');
   closeModal('scoreModal');
   showToast(wasConfirm?'Score confirmed!':'Score submitted — awaiting opponent confirmation');
-  renderPage(document.querySelector('.page.active').id.replace('page-',''));
 }
 
-function confirmScore(id){
+async function confirmScore(id){
   const m=S.matches[id];
-  // The submitting team cannot also be the one who confirms — that's the same team grading
-  // its own score. Admin can always confirm regardless of who submitted, since admin authority
-  // is already established as final elsewhere (dispute resolution). Everyone else must be the
-  // OTHER team in the match, not the submitter.
   if(!isAdminUser()&&S.myTeamId&&S.myTeamId===m.submittedBy){
     showToast("You submitted this score — waiting on the other captain to confirm it, not you",true);
     return;
   }
-  S.matches[id]={...m,status:'confirmed'};
+  await MatchesDB.update(id,{status:'confirmed'});
   addLog(`Score confirmed: ${tn(m.t1)} vs ${tn(m.t2)}`,'var(--accent)');
-  showToast('Score confirmed!');renderSubmitPage();renderHome();
+  showToast('Score confirmed!');
 }
 
-function disputeScore(id){
+async function disputeScore(id){
   const m=S.matches[id];
-  S.matches[id]={...m,status:'disputed'};
+  await MatchesDB.update(id,{status:'disputed'});
   addLog(`Score disputed: ${tn(m.t1)} vs ${tn(m.t2)} — refer to coach`,'var(--red)');
-  showToast('Disputed — coach will resolve',true);renderSubmitPage();
+  showToast('Disputed — coach will resolve',true);
 }
 

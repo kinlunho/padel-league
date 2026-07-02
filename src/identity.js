@@ -17,6 +17,7 @@
 //   become async reads instead, with no change needed to callers.
 
 // ════════ FIREBASE INIT ════════
+// firebaseConfig loaded from src/firebase-config.js (gitignored)
 const firebaseApp  = firebase.initializeApp(firebaseConfig);
 const firebaseAuth = firebase.auth();
 
@@ -58,6 +59,7 @@ async function resolveIdentity(firebaseUser){
 
   S.userEmail = firebaseUser.email;
 
+  // Force-refresh token to get latest custom claims without requiring re-login
   const tokenResult = await firebaseUser.getIdTokenResult(true);
   const role = tokenResult.claims.role || 'viewer';
   S.isAdmin   = role === 'admin';
@@ -121,7 +123,7 @@ function applyRoleGating(){
   }
 }
 
-// ════════ AUTH GATE ACTIONS ════════
+// ════════ AUTH GATE ACTIONS (called from index.html buttons) ════════
 function openSignIn(){
   const email    = document.getElementById('signin-email').value.trim();
   const password = document.getElementById('signin-password').value;
@@ -137,17 +139,7 @@ function openSignIn(){
           : err.message;
     });
 }
-function handleSignOut(){
-  if (IS_LOCAL_DEV){
-    // In dev mode the auth listener isn't running, so manually reset state
-    S.devRole = 'admin';
-    S.devTeamId = null;
-    hideApp();
-    setNavUser(null);
-    return;
-  }
-  firebaseAuth.signOut();
-}
+function handleSignOut(){ firebaseAuth.signOut(); }
 
 function showResetView(){
   document.getElementById('auth-signin-view').style.display = 'none';
@@ -179,18 +171,34 @@ function sendResetEmail(){
 }
 
 // ════════ DEV FLAG ════════
+// Keep this const before the if blocks so both branches can read it.
 const IS_LOCAL_DEV = location.protocol === 'file:' || location.hostname === 'localhost';
 
 // ════════ PRODUCTION: Firebase Auth state listener ════════
 if (!IS_LOCAL_DEV){
   firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
-    await resolveIdentity(firebaseUser);
     if (firebaseUser){
+      await resolveIdentity(firebaseUser);
+
+      // Start real-time Firestore listeners — they will call renderHome() automatically
+      // whenever teams or matches data changes in Firestore, keeping every user's screen
+      // live without any manual refresh.
+      TeamsDB.subscribe(() => {
+        renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+      });
+      MatchesDB.subscribe(() => {
+        renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+      });
+
       showApp();
       setNavUser(firebaseUser);
       applyRoleGating();
       renderHome();
     } else {
+      // Stop listeners on logout — prevents Firestore from throwing permission errors
+      // after the user signs out and the Security Rules no longer grant access.
+      TeamsDB.stop();
+      MatchesDB.stop();
       hideApp();
       setNavUser(null);
     }
@@ -198,6 +206,8 @@ if (!IS_LOCAL_DEV){
 }
 
 // ════════ LOCAL DEV MODE ════════
+// Bypasses Firebase Auth when running from file:// or localhost.
+// Remove this entire block before going live.
 if (IS_LOCAL_DEV){
   S.devRole   = 'admin';
   S.devTeamId = null;
