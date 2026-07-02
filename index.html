@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GO PARK × The One – Padel Summer League 2026</title>
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <div class="auth-logo">GO PARK Sports × The One</div>
+    <div class="auth-title">Padel <span>Summer</span> League 2026</div>
+    <div class="auth-dates">11 July – 4 October 2026</div>
+    <button class="auth-btn" onclick="netlifyIdentity.open('login')">Sign In to League Portal</button>
+    <p class="auth-note">Access is by invitation only.<br>Contact your league coach if you haven't received your invite email.</p>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-brand">⬡ PADEL SL 2026</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('home',this)">Home</button>
+    <button class="nav-tab" onclick="showPage('standings',this)">Standings</button>
+    <button class="nav-tab" onclick="showPage('matches',this)">Matches</button>
+    <button class="nav-tab" onclick="showPage('schedule',this)">Schedule</button>
+    <button class="nav-tab" onclick="showPage('teams',this)">Teams</button>
+    <button class="nav-tab" onclick="showPage('submit',this)">Submit Score</button>
+    <button class="nav-tab" onclick="showPage('knockout',this)">Knockouts</button>
+    <button class="nav-tab" onclick="showPage('rules',this)">Rules</button>
+  </div>
+  <div class="nav-user" id="nav-user">
+    <div class="nav-user-dot"></div>
+    <span class="nav-user-email" id="nav-user-email">—</span>
+    <button class="nav-logout" onclick="netlifyIdentity.logout()">Sign out</button>
+  </div>
+  <button class="btn btn-ghost btn-sm" id="nav-join-btn" onclick="openModal('joinPlayerModal')" style="display:none;">Join as Player</button>
+  <button class="btn btn-primary btn-sm" id="nav-register-btn" onclick="openModal('registerModal')" style="display:none;">+ Register Team</button>
+</nav>
+
+<!-- ══ HOME ══ -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <div class="hero-org">GO PARK Sports × The One</div>
+    <h1>PADEL <span>SUMMER</span><br>LEAGUE 2026</h1>
+    <div class="hero-dates">📅 11 Jul – 4 Oct 2026 &nbsp;·&nbsp; ⏰ Sat & Sun 7–11 PM &nbsp;·&nbsp; 💰 HKD 3,500/team</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" id="hero-register-btn" onclick="openModal('registerModal')" style="display:none;">Register Team</button>
+      <button class="btn btn-ghost" onclick="showPage('rules',null)">Rules</button>
+      <button class="btn btn-ghost" onclick="showPage('schedule',null)">Schedule</button>
+    </div>
+    <div id="viewer-notice" style="display:none;font-size:11px;color:var(--muted);margin-top:12px;">👁 Viewing in read-only mode — contact your coach if you need captain access to schedule matches or submit scores.</div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="stat-val" id="stat-teams">0</div><div class="stat-label">Teams</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-played">0</div><div class="stat-label">Played</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-groups">0</div><div class="stat-label">Groups</div></div>
+    </div>
+  </div>
+  <div id="my-team-section" style="display:none;"></div>
+  <div class="grid-3" id="home-group-leaders"></div>
+  <div class="card" style="margin-top:8px;">
+    <div style="font-weight:700;margin-bottom:12px;font-size:14px;">Recent Activity</div>
+    <div id="activity-feed"><div style="color:var(--muted);font-size:12px;">No activity yet.</div></div>
+  </div>
+</div>
+
+<!-- ══ STANDINGS ══ -->
+<div class="page" id="page-standings">
+  <div class="section-title">Group Stage Standings</div>
+  <div class="alert alert-blue" style="margin-bottom:16px;">Top 4 per group → <strong>Champions Knockout</strong> &nbsp;·&nbsp; 5th and below → <strong>Phoenix Cup</strong></div>
+  <div class="group-tabs" id="standings-group-tabs"></div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table>
+      <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GW</th><th>GL</th><th>GD</th><th>Pts</th></tr></thead>
+      <tbody id="standings-body"></tbody>
+    </table>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;">GW = Games Won · GL = Games Lost · GD = Game Difference · Tiebreak: H2H pts → H2H GD → Overall GD → Total GW → Coin toss</div>
+</div>
+
+<!-- ══ MATCHES ══ -->
+<div class="page" id="page-matches">
+  <div class="section-title">Group Stage Matches</div>
+  <div class="group-tabs" id="matches-group-tabs"></div>
+  <div id="matches-container" class="match-grid"></div>
+</div>
+
+<!-- ══ SCHEDULE ══ -->
+<div class="page" id="page-schedule">
+  <div class="section-title">Court Schedule
+    <button class="btn btn-primary btn-sm" id="sch-page-btn" onclick="openModal('scheduleModal')" style="margin-left:auto;display:none;">+ Schedule Match</button>
+  </div>
+  <div id="week-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;"></div>
+  <div class="court-wrap" id="court-schedule"></div>
+</div>
+
+<!-- ══ TEAMS ══ -->
+<div class="page" id="page-teams">
+  <div class="section-title">Registered Teams</div>
+  <div class="group-tabs" id="teams-group-tabs"></div>
+  <div id="teams-container" class="grid-2"></div>
+</div>
+
+<!-- ══ SUBMIT SCORE ══ -->
+<div class="page" id="page-submit">
+  <div class="section-title">Submit / Confirm Score</div>
+  <div id="submit-container"></div>
+</div>
+
+<!-- ══ KNOCKOUT ══ -->
+<div class="page" id="page-knockout">
+  <div class="section-title">Knockout Stage</div>
+  <div class="alert alert-blue" style="margin-bottom:18px;" id="knockout-status">Group stage in progress — knockout brackets will populate once standings are confirmed.</div>
+  <div id="knockout-container"></div>
+</div>
+
+<!-- ══ RULES ══ -->
+<div class="page" id="page-rules">
+  <div class="section-title">Rules & Regulations</div>
+  <div class="rules-nav">
+    <button class="rules-btn active" onclick="switchRules('overview',this)">Overview</button>
+    <button class="rules-btn" onclick="switchRules('format',this)">Competition Format</button>
+    <button class="rules-btn" onclick="switchRules('scoring',this)">Scoring & Tiebreakers</button>
+    <button class="rules-btn" onclick="switchRules('match',this)">Match Rules</button>
+    <button class="rules-btn" onclick="switchRules('schedule-r',this)">Scheduling</button>
+    <button class="rules-btn" onclick="switchRules('teams-r',this)">Team Rules</button>
+    <button class="rules-btn" onclick="switchRules('conduct',this)">Captain's Code</button>
+  </div>
+
+  <div class="rules-section active" id="rules-overview">
+    <div class="rule-block">
+      <h3>🏆 GO PARK Sports × The One – Padel Summer League 2026</h3>
+      <p>A summer padel league running from <strong>11 July to 4 October 2026</strong>, played on Saturdays and Sundays between 7 PM and 11 PM. Teams compete in a group stage followed by two parallel knockout competitions.</p>
+      <div class="hl gold">
+        <strong>Quick Reference</strong><br>
+        📅 Dates: 11 July – 4 October 2026<br>
+        ⏰ Saturdays & Sundays, 7–11 PM (4 × 1-hour slots per court per night)<br>
+        💰 Entry fee: HKD 3,500 per team<br>
+        👥 Team size: 2–5 players, aged 18–65<br>
+        🎾 2 players on court per match; subs rotate between matches only<br>
+        📦 3 new tubes of balls per team; 1 shirt per participant
+      </div>
+    </div>
+  </div>
+
+  <div class="rules-section" id="rules-format">
+    <div class="rule-block">
+      <h3>Phase 1 — Group Stage</h3>
+      <ul>
+        <li>Teams are divided into groups. Every team plays every other team in their group once (round-robin).</li>
+        <li>Points system: <strong>Win = 3 pts, Draw = 1 pt, Loss = 0 pts.</strong></li>
+        <li><strong>Top 4 teams</strong> from each group advance to the <strong>Champions Knockout</strong>.</li>
+        <li><strong>5th place and below</strong> enter the <strong>Phoenix Cup</strong>.</li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>Phase 2A — Champions Knockout</h3>
+      <ul>
+        <li>All Champions Knockout qualifiers play a full round-robin among themselves.</li>
+        <li>After the round-robin, the <strong>top 2 teams</strong> play a <strong>Championship Final</strong>.</li>
+        <li>The Final winner is the Champions Knockout Champion.</li>
+      </ul>
+      <div class="hl gold">Full knockout rules will be communicated by the league organisers before the phase begins.</div>
+    </div>
+    <div class="rule-block">
+      <h3>Phase 2B — Phoenix Cup</h3>
+      <ul>
+        <li>All Phoenix Cup qualifiers (5th place and below from each group) play a full round-robin among themselves.</li>
+        <li>After the round-robin, the <strong>top 2 teams</strong> play the <strong>Phoenix Cup Final</strong>.</li>
+      </ul>
+      <div class="hl warn">Same format as the Champions Knockout, but separate competition. No relegation — this is a second chance to win something.</div>
+    </div>
+  </div>
+
+  <div class="rules-section" id="rules-scoring">
+    <div class="rule-block">
+      <h3>📊 Points System</h3>
+      <ul>
+        <li><strong>Win = 3 points</strong></li>
+        <li><strong>Draw = 1 point</strong></li>
+        <li><strong>Loss = 0 points</strong></li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>⏱ Time Limit & Games Rule</h3>
+      <p>Each match is <strong>60 minutes total</strong> including warm-up. If the clock expires before two sets are completed, total games won decide the match result:</p>
+      <ul style="margin-top:8px;">
+        <li><strong>Example 1:</strong> Score is 6–3, 2–4 at time → Games: 8–7 → Team A wins (3 pts)</li>
+        <li><strong>Example 2:</strong> Score is 6–3, 3–6 at time → Games: 9–9 → Draw (1 pt each)</li>
+      </ul>
+      <div class="hl warn">If time expires mid-set, count only completed games. The incomplete set does not count.</div>
+    </div>
+    <div class="rule-block">
+      <h3>📏 Tiebreaker Order (equal points)</h3>
+      <p>Applied in strict order — move to the next criterion only if still tied:</p>
+      <ol style="margin-top:8px;">
+        <li>Head-to-head points (between the tied teams only)</li>
+        <li>Head-to-head game difference (between the tied teams only)</li>
+        <li>Overall game difference (all group matches)</li>
+        <li>Total games won (all group matches)</li>
+        <li>Coin toss — witnessed by coach</li>
+      </ol>
+      <div class="hl red">Numbers only. No subjective calls. The coach is the final arbiter and the same rules apply to everyone.</div>
+    </div>
+  </div>
+
+  <div class="rules-section" id="rules-match">
+    <div class="rule-block">
+      <h3>⏱ Match Clock</h3>
+      <ul>
+        <li><strong>60 minutes total</strong>, including warm-up. Clock starts at the scheduled time — not when you walk on.</li>
+        <li>Late arrival: you play with whatever time is remaining.</li>
+        <li>Less than <strong>40 minutes</strong> remaining when you arrive? The match is rescheduled.</li>
+        <li>Rain interruption: if fewer than <strong>40 minutes</strong> were played before rain, both captains must reschedule.</li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>🎾 Match Format</h3>
+      <ul>
+        <li>Format: <strong>2 full sets + super tie-break</strong> (if time allows).</li>
+        <li>Super tie-break: first to 10 points, win by 2.</li>
+        <li>If time expires before 2 sets are complete: total games decide (see Scoring above).</li>
+        <li>Players may also book courts privately at their own cost on weekdays to practice — this does not count as a league match.</li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>⚠️ Why No Challenges</h3>
+      <ul>
+        <li>Every scenario is predefined. No subjective calls — only games and the clock.</li>
+        <li>The coach is the final arbiter.</li>
+        <li>The same rules apply equally to everyone, every match.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="rules-section" id="rules-schedule-r">
+    <div class="rule-block">
+      <h3>📅 Booking a Match</h3>
+      <ul>
+        <li>Both captains agree on a date and time: <strong>Saturdays or Sundays, 7–11 PM only.</strong></li>
+        <li>Both captains confirm with the coaches — slot is then locked.</li>
+        <li>Court booking is <strong>first come, first served.</strong></li>
+        <li>Missing Week 1 or 2 is fine — the league runs until 4 October.</li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>🔁 Rescheduling</h3>
+      <ul>
+        <li>No unilateral changes. Rescheduling requires <strong>both captains + coach approval, at least 48 hours in advance.</strong></li>
+        <li>Late arrival with <strong>less than 40 minutes</strong> remaining = automatic reschedule.</li>
+        <li>Rain with <strong>less than 40 minutes played</strong> = both captains must reschedule.</li>
+      </ul>
+      <div class="hl warn">Failure to reschedule properly or to play your scheduled matches is a breach of the Captain's Code.</div>
+    </div>
+  </div>
+
+  <div class="rules-section" id="rules-teams-r">
+    <div class="rule-block">
+      <h3>👥 Team Composition</h3>
+      <ul>
+        <li>Team size: <strong>2 to 5 registered players.</strong></li>
+        <li>Age range: <strong>18–65 years.</strong></li>
+        <li><strong>2 players on court</strong> per match at all times.</li>
+        <li>Substitutions are allowed <strong>between matches only</strong> — not during a match.</li>
+        <li>All players must be registered on the team roster.</li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>🎽 Equipment</h3>
+      <ul>
+        <li><strong>3 new tubes of balls</strong> provided per team for the season.</li>
+        <li><strong>1 shirt per participant</strong> included with registration.</li>
+        <li>Entry fee: <strong>HKD 3,500 per team.</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="rules-section" id="rules-conduct">
+    <div class="rule-block">
+      <h3>⚠️ Captain's Code — No Drama, No Complaints</h3>
+      <ul>
+        <li>By signing up, you and your team <strong>commit to playing ALL your scheduled matches.</strong> Responsibility is on you.</li>
+        <li>No complaints about the format, rules, or schedule. Every rule applies equally to everyone.</li>
+        <li>For the knockout stage: <strong>Captains must ensure all team players are available for the knockout day.</strong></li>
+      </ul>
+      <div class="hl red">You don't have to like every rule — you only have to follow it.</div>
+    </div>
+    <div class="rule-block">
+      <h3>🏅 Spirit of the League</h3>
+      <p>This league is built on fair play, shared responsibility, and competitive fun. The coach's decision is final. Disputes are resolved by the numbers — games and the clock — not arguments. LET'S GO ONERS! TIME TO SMASH THIS SUMMER 🔥</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- Register -->
+<div class="modal-overlay" id="registerModal">
+  <div class="modal">
+    <div class="modal-title">Register Team</div>
+    <div class="form-group">
+      <label class="form-label">Team Name</label>
+      <input class="form-input" id="reg-name" placeholder="e.g. The Smashers">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Captain Email</label>
+      <input class="form-input" id="reg-email" type="email" placeholder="captain@email.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Group</label>
+      <select class="form-select" id="reg-group"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Players <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(min 2, max 5, ages 18–65)</span></label>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Phone numbers are used for the league-wide WhatsApp broadcast group (weather updates, announcements).</div>
+      <div id="reg-player-fields">
+        <div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>
+        <div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:6px;" id="add-player-btn" onclick="addPlayerField()">+ Add Player</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('registerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="registerTeam()">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Match -->
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal">
+    <div class="modal-title">Schedule a Match</div>
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">Both captains must have agreed before scheduling. Coach confirmation locks the slot.</div>
+    <div class="form-group">
+      <label class="form-label">Group</label>
+      <select class="form-select" id="sch-group" onchange="updateSchTeams()"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Home Team</label>
+      <select class="form-select" id="sch-t1"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Away Team</label>
+      <select class="form-select" id="sch-t2"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <select class="form-select" id="sch-date"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time Slot (Sat/Sun 7–11 PM only)</label>
+      <select class="form-select" id="sch-time">
+        <option value="19:00">19:00 – 20:00</option>
+        <option value="20:00">20:00 – 21:00</option>
+        <option value="21:00">21:00 – 22:00</option>
+        <option value="22:00">22:00 – 23:00</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Court</label>
+      <select class="form-select" id="sch-court">
+        <option value="1">Court 1</option>
+        <option value="2">Court 2</option>
+      </select>
+    </div>
+    <div id="sch-conflict" class="alert alert-warn" style="display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('scheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="scheduleMatch()">Lock Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Claim Slot (for auto-generated fixtures) -->
+<div class="modal-overlay" id="claimSlotModal">
+  <div class="modal">
+    <div class="modal-title">Claim a Slot</div>
+    <div id="claim-match-info" style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:14px;font-weight:600;text-align:center;"></div>
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">First come, first served. Both captains should agree before locking this in.</div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <select class="form-select" id="claim-date"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time Slot (Sat/Sun 7–11 PM only)</label>
+      <select class="form-select" id="claim-time">
+        <option value="19:00">19:00 – 20:00</option>
+        <option value="20:00">20:00 – 21:00</option>
+        <option value="21:00">21:00 – 22:00</option>
+        <option value="22:00">22:00 – 23:00</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Court</label>
+      <select class="form-select" id="claim-court">
+        <option value="1">Court 1</option>
+        <option value="2">Court 2</option>
+      </select>
+    </div>
+    <div id="claim-conflict" class="alert alert-warn" style="display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('claimSlotModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmClaimSlot()">Claim Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Schedule (clicked from an empty court slot — captain path only; admin path reuses the free scheduler) -->
+<div class="modal-overlay" id="quickScheduleModal">
+  <div class="modal">
+    <div class="modal-title">Schedule Into This Slot</div>
+    <div id="quick-slot-info" style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;font-weight:600;text-align:center;"></div>
+    <div class="form-group">
+      <label class="form-label">Which of your open fixtures?</label>
+      <select class="form-select" id="quick-fixture-select"></select>
+    </div>
+    <div class="alert alert-warn" style="margin-bottom:0;font-size:12px;">Only fixtures in a currently-open round for your team are listed.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('quickScheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmQuickSchedule()">Lock This Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Roster Modal -->
+<div class="modal-overlay" id="rosterEditModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title" id="roster-edit-title">Edit Roster</div>
+    <div class="form-group">
+      <label class="form-label">Team Email</label>
+      <input class="form-input" id="roster-team-email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Players <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(min 2, max 5)</span></label>
+      <div id="roster-player-list"></div>
+      <button class="btn btn-ghost btn-sm" id="roster-add-btn" style="margin-top:8px;" onclick="addRosterPlayerRow()">+ Add Player</button>
+    </div>
+    <div class="alert alert-warn" style="font-size:11px;margin-bottom:0;">Each unclaimed player has a code — share it with them so they can link their own login. "Regenerate" invalidates the old code if it was shared by mistake.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rosterEditModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRosterEdit()">Save Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- Join as Player Modal -->
+<div class="modal-overlay" id="joinPlayerModal">
+  <div class="modal">
+    <div class="modal-title">Join as Player</div>
+    <div class="alert alert-warn" style="font-size:12px;margin-bottom:16px;">Get this code from your team captain — it links your login to your specific roster slot. This gives you read access to your team's results and schedule; it does not give you scheduling or scoring permissions (that stays with your captain).</div>
+    <div class="form-group">
+      <label class="form-label">Claim Code</label>
+      <input class="form-input" id="join-claim-code" placeholder="e.g. 7K9PXR" style="text-transform:uppercase;font-family:'Space Mono',monospace;letter-spacing:2px;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('joinPlayerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmJoinPlayer()">Link My Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Score Modal -->
+<div class="modal-overlay" id="scoreModal">
+  <div class="modal">
+    <div class="modal-title" id="score-modal-title">Submit Score</div>
+    <div id="score-match-info" style="background:var(--surface2);border-radius:8px;padding:11px;margin-bottom:16px;font-size:13px;"></div>
+
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">
+
+      ⏱ If 60 min expired before 2 sets were done, enter total games won per team instead and tick the box below.
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <input type="checkbox" id="sc-games-only" onchange="toggleGamesMode()" style="width:16px;height:16px;accent-color:var(--warn);">
+      <label for="sc-games-only" style="font-size:13px;cursor:pointer;">Time expired — entering total games only</label>
+    </div>
+
+    <!-- Sets mode -->
+    <div id="sc-sets-mode">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Set 1</div>
+      <div class="score-row">
+        <div><div class="score-team-lbl" id="sc-lbl-t1a">Team A</div><input class="score-input" id="sc-s1-t1" type="number" min="0" max="7" value="6" oninput="updateScorePreview()"></div>
+        <div class="score-divider">–</div>
+        <div><div class="score-team-lbl" id="sc-lbl-t2a">Team B</div><input class="score-input" id="sc-s1-t2" type="number" min="0" max="7" value="3" oninput="updateScorePreview()"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;margin-top:12px;">Set 2</div>
+      <div class="score-row">
+        <div><div class="score-team-lbl" id="sc-lbl-t1b">Team A</div><input class="score-input" id="sc-s2-t1" type="number" min="0" max="7" value="4" oninput="updateScorePreview()"></div>
+        <div class="score-divider">–</div>
+        <div><div class="score-team-lbl" id="sc-lbl-t2b">Team B</div><input class="score-input" id="sc-s2-t2" type="number" min="0" max="7" value="6" oninput="updateScorePreview()"></div>
+      </div>
+      <div class="stb-box" id="sc-stb-box" style="display:none;">
+        <div class="stb-lbl">⚡ Super Tiebreaker (if time allowed)</div>
+        <div class="score-row">
+          <div><div class="score-team-lbl" id="sc-lbl-t1c">Team A</div><input class="score-input" id="sc-stb-t1" type="number" min="0" max="99" value="10"></div>
+          <div class="score-divider">–</div>
+          <div><div class="score-team-lbl" id="sc-lbl-t2c">Team B</div><input class="score-input" id="sc-stb-t2" type="number" min="0" max="99" value="7"></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">First to 10, win by 2</div>
+      </div>
+    </div>
+
+    <!-- Games-only mode -->
+    <div id="sc-games-mode" style="display:none;">
+      <div style="font-size:10px;color:var(--warn);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Total Games Won (time expired)</div>
+      <div class="score-row">
+        <div><div class="score-team-lbl" id="sc-lbl-t1g">Team A</div><input class="score-input" id="sc-g-t1" type="number" min="0" max="50" value="8"></div>
+        <div class="score-divider">–</div>
+        <div><div class="score-team-lbl" id="sc-lbl-t2g">Team B</div><input class="score-input" id="sc-g-t2" type="number" min="0" max="50" value="7"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Equal games = Draw (1 pt each). Unequal = Win/Loss.</div>
+    </div>
+
+    <div id="sc-result-preview" style="text-align:center;font-size:13px;margin-top:10px;font-weight:600;"></div>
+
+    <div class="form-group" style="margin-top:12px;">
+      <label class="form-label">Notes (optional)</label>
+      <input class="form-input" id="sc-notes" placeholder="e.g. rain delay, time expired at 6-3 3-...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('scoreModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitScore()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule -->
+<div class="modal-overlay" id="rescheduleModal">
+  <div class="modal">
+    <div class="modal-title">Request Reschedule</div>
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">Both captains + coach must approve. Must be requested at least 48h in advance.</div>
+    <div id="rsch-info" style="background:var(--surface2);border-radius:8px;padding:11px;margin-bottom:16px;font-size:13px;"></div>
+    <div class="form-group"><label class="form-label">New Date</label><select class="form-select" id="rsch-date"></select></div>
+    <div class="form-group">
+      <label class="form-label">New Time Slot</label>
+      <select class="form-select" id="rsch-time">
+        <option value="19:00">19:00 – 20:00</option>
+        <option value="20:00">20:00 – 21:00</option>
+        <option value="21:00">21:00 – 22:00</option>
+        <option value="22:00">22:00 – 23:00</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Court</label><select class="form-select" id="rsch-court"><option value="1">Court 1</option><option value="2">Court 2</option></select></div>
+    <div class="form-group"><label class="form-label">Reason</label><input class="form-input" id="rsch-reason" placeholder="e.g. player unavailable, rain..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rescheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReschedule()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<!--
+  Loaded as classic scripts (not ES modules) so every function stays in global scope exactly
+  as it did in the original single-file version — every onclick="..." attribute in the HTML
+  above keeps working unmodified. Order matters here: each file must load after anything it
+  calls. src/main.js runs the actual bootstrap (seed data, initial renders) and must be last.
+
+  This is deliberately NOT an ES-module + bundler setup yet. That's the right move once the
+  Firestore SDK work starts — modules and a bundler (Vite) genuinely earn their complexity
+  there. Doing both restructurings in one pass would multiply the risk of breaking something
+  for a request that was specifically "structure first."
+-->
+<script src="src/state.js"></script>
+<script src="src/scoring.js"></script>
+<script src="src/router.js"></script>
+<script src="src/roundrobin.js"></script>
+<script src="src/render/home.js"></script>
+<script src="src/render/standings.js"></script>
+<script src="src/render/matches.js"></script>
+<script src="src/render/schedule.js"></script>
+<script src="src/render/teams.js"></script>
+<script src="src/render/submit.js"></script>
+<script src="src/render/knockout.js"></script>
+<script src="src/actions/modals.js"></script>
+<script src="src/actions/score-actions.js"></script>
+<script src="src/actions/slot-actions.js"></script>
+<script src="src/actions/roster.js"></script>
+<script src="src/utils.js"></script>
+<script src="src/seed-data.js"></script>
+<script src="src/identity.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>

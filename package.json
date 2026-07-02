@@ -1,0 +1,9 @@
+{
+  "name": "padel-summer-league",
+  "version": "1.0.0",
+  "description": "GO PARK x The One Padel Summer League 2026 - league management app",
+  "scripts": {
+    "dev": "npx serve . -l 3000"
+  },
+  "license": "UNLICENSED"
+}
