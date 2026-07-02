@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GO PARK × The One – Padel Summer League 2026</title>
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<!-- Firebase SDKs (compat — work as classic scripts, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -17,8 +20,11 @@
     <div class="auth-logo">GO PARK Sports × The One</div>
     <div class="auth-title">Padel <span>Summer</span> League 2026</div>
     <div class="auth-dates">11 July – 4 October 2026</div>
-    <button class="auth-btn" onclick="netlifyIdentity.open('login')">Sign In to League Portal</button>
-    <p class="auth-note">Access is by invitation only.<br>Contact your league coach if you haven't received your invite email.</p>
+    <input class="form-input" id="signin-email" type="email" placeholder="Email address" style="margin-bottom:10px;">
+    <input class="form-input" id="signin-password" type="password" placeholder="Password" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')openSignIn()">
+    <button class="auth-btn" onclick="openSignIn()">Sign In to League Portal</button>
+    <p id="signin-error" style="color:#f87171;font-size:12px;margin-top:10px;min-height:18px;"></p>
+    <p class="auth-note">Access is by invitation only.<br>Your coach will email you a password when you are added to the system.</p>
   </div>
 </div>
 
@@ -38,7 +44,7 @@
   <div class="nav-user" id="nav-user">
     <div class="nav-user-dot"></div>
     <span class="nav-user-email" id="nav-user-email">—</span>
-    <button class="nav-logout" onclick="netlifyIdentity.logout()">Sign out</button>
+    <button class="nav-logout" onclick="handleSignOut()">Sign out</button>
   </div>
   <button class="btn btn-ghost btn-sm" id="nav-join-btn" onclick="openModal('joinPlayerModal')" style="display:none;">Join as Player</button>
   <button class="btn btn-primary btn-sm" id="nav-register-btn" onclick="openModal('registerModal')" style="display:none;">+ Register Team</button>
@@ -587,6 +593,7 @@
 <script src="src/actions/roster.js"></script>
 <script src="src/utils.js"></script>
 <script src="src/seed-data.js"></script>
+<script src="src/firebase-config.js"></script>
 <script src="src/identity.js"></script>
 <script src="src/main.js"></script>
 </body>
