@@ -4,3 +4,4 @@ node_modules/
 .env
 .env.local
 firebase-config.local.js
+src/firebase-config.js
