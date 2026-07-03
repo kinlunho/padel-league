@@ -43,9 +43,9 @@ function renderTeamsList(group){
           ${isAdminUser()?`
             <select class="form-select" id="div-sel-${t.id}" style="font-size:11px;padding:4px 8px;width:160px;">
               ${DIVISIONS.map(d=>`<option value="${d}"${d===t.group?' selected':''}>${d}</option>`).join('')}
-              ${t.group==='Unassigned'?'':''}
             </select>
-            <button class="btn btn-${t.group==='Unassigned'?'primary':'ghost'} btn-sm" onclick="assignDivision('${t.id}')">${t.group==='Unassigned'?'Assign':'Move'}</button>`:''}
+            <button class="btn btn-${t.group==='Unassigned'?'primary':'ghost'} btn-sm" onclick="assignDivision('${t.id}')">${t.group==='Unassigned'?'Assign':'Move'}</button>
+            <button class="btn btn-danger btn-sm" onclick="adminDeleteTeam('${t.id}','${t.name.replace(/'/g,"\\'")}')">Delete</button>`:''}
           ${editable?`<button class="btn btn-ghost btn-sm" onclick="openRosterEdit('${t.id}')">✎ Edit Roster</button>`:''}
         </div>
       </div>

@@ -135,3 +135,59 @@ exports.deleteUser = functions.region(REGION).https.onCall(async (data, context)
 
   return { success: true };
 });
+
+// ── deleteTeam ────────────────────────────────────────────────────────────────
+// Deletes a team and all its matches for the active season.
+// Also demotes the captain back to viewer and removes their teamMembers record.
+// Caller must pass force:true if the season is locked (has confirmed matches).
+exports.deleteTeam = functions.region(REGION).https.onCall(async (data, context) => {
+  await requireAdmin(context);
+  const { teamId, force = false } = data;
+  if (!teamId) throw new functions.https.HttpsError('invalid-argument', 'teamId required.');
+
+  const firestore = admin.firestore();
+
+  // Check season lock
+  const configSnap = await firestore.collection('config').doc('league').get();
+  const seasonLocked = configSnap.exists && configSnap.data().seasonLocked;
+  if (seasonLocked && !force) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Season is locked — confirmed matches exist. Pass force:true to delete anyway.'
+    );
+  }
+
+  // Fetch all matches for this team this season
+  const allMatches = await firestore.collection('matches')
+    .where('season', '==', ACTIVE_SEASON).get();
+  const teamMatches = allMatches.docs.filter(d =>
+    d.data().t1 === teamId || d.data().t2 === teamId
+  );
+  const confirmedCount = teamMatches.filter(d =>
+    d.data().status === 'confirmed'
+  ).length;
+
+  // Batch delete matches in chunks of 499
+  for (let i = 0; i < teamMatches.length; i += 499) {
+    const batch = firestore.batch();
+    teamMatches.slice(i, i + 499).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  // Demote captain, remove teamMembers record
+  const memberSnap = await firestore.collection('teamMembers')
+    .where('season', '==', ACTIVE_SEASON)
+    .where('teamId', '==', teamId).get();
+  for (const doc of memberSnap.docs) {
+    const uid = doc.data().uid;
+    await admin.auth().setCustomUserClaims(uid, { role: 'viewer' }).catch(() => {});
+    await firestore.collection('users').doc(uid)
+      .set({ role: 'viewer', teamId: null }, { merge: true }).catch(() => {});
+    await doc.ref.delete();
+  }
+
+  // Delete team document
+  await firestore.collection('teams').doc(teamId).delete();
+
+  return { success: true, matchesDeleted: teamMatches.length, confirmedDeleted: confirmedCount };
+});

@@ -63,7 +63,7 @@ function regenerateRosterCode(index){
   showToast('New code generated — save to confirm');
 }
 
-function saveRosterEdit(){
+async function saveRosterEdit(){
   const teamId=S.editRosterTeamId;
   const t=S.teams[teamId];
   const email=document.getElementById('roster-team-email').value.trim();
@@ -84,15 +84,19 @@ function saveRosterEdit(){
     };
   }).filter(p=>p.name);
   if(newPlayers.length<2){showToast('Minimum 2 players with names required',true);return;}
-  S.teams[teamId]={...t,email,players:newPlayers};
-  addLog(`Roster updated: ${t.name}`,'var(--brand)');
-  closeModal('rosterEditModal');
-  showToast('Roster saved!');
-  renderTeamsList(t.group);
+  try {
+    await TeamsDB.update(teamId,{email,players:newPlayers});
+    addLog(`Roster updated: ${t.name}`,'var(--brand)');
+    closeModal('rosterEditModal');
+    showToast('Roster saved!');
+    // No renderTeamsList needed — TeamsDB.subscribe onSnapshot fires automatically
+  } catch(err){
+    showToast('Failed to save roster: ' + err.message, true);
+  }
 }
 
 // ════════ JOIN AS PLAYER (claim-code linking) ════════
-function confirmJoinPlayer(){
+async function confirmJoinPlayer(){
   const code=document.getElementById('join-claim-code').value.trim().toUpperCase();
   if(!code){showToast('Enter a claim code',true);return;}
   if(!S.userEmail){showToast('Sign in first',true);return;}
@@ -104,12 +108,20 @@ function confirmJoinPlayer(){
   });
   if(!found){showToast('Code not recognized — check with your captain',true);return;}
   if(found.claimedByEmail){showToast('This slot is already linked to another account',true);return;}
-  found.claimedByEmail=S.userEmail;
-  S.myPlayerTeamId=foundTeam.id;
-  addLog(`${S.userEmail} linked to ${found.name} on ${foundTeam.name}`,'var(--accent)');
-  closeModal('joinPlayerModal');
-  showToast(`Linked! You're now following ${foundTeam.name}.`);
-  renderHome();
+  // Write updated players array to Firestore with this slot claimed
+  const updatedPlayers=(foundTeam.players||[]).map(p=>
+    p.pid===found.pid ? {...p,claimedByEmail:S.userEmail} : p
+  );
+  try {
+    await TeamsDB.update(foundTeam.id,{players:updatedPlayers});
+    S.myPlayerTeamId=foundTeam.id;
+    addLog(`${S.userEmail} linked to ${found.name} on ${foundTeam.name}`,'var(--accent)');
+    closeModal('joinPlayerModal');
+    showToast(`Linked! You're now following ${foundTeam.name}.`);
+    renderHome();
+  } catch(err){
+    showToast('Failed to claim slot: ' + err.message, true);
+  }
 }
 function openReschedule(id){
   S.editMatchId=id;
@@ -138,3 +150,29 @@ async function confirmReschedule(){
   }
 }
 
+
+async function adminDeleteTeam(teamId, teamName){
+  const teamMatches = Object.values(S.matches).filter(m =>
+    m.t1===teamId || m.t2===teamId
+  );
+  const confirmed = teamMatches.filter(m => m.status==='confirmed').length;
+  const seasonLocked = S.config?.seasonLocked;
+
+  let msg = `Delete "${teamName}"?\n\n`;
+  if(confirmed > 0)
+    msg += `⚠ ${confirmed} confirmed match${confirmed!==1?'es':''} with recorded scores will also be deleted — this affects standings.\n\n`;
+  if(seasonLocked)
+    msg += `⚠ Season is locked (fixtures generated). Deleting mid-season will break the round-robin schedule.\n\n`;
+  msg += `The captain's account will be downgraded to Viewer. This cannot be undone.`;
+
+  if(!confirm(msg)) return;
+
+  // Second confirmation if season is locked or confirmed matches exist
+  if((seasonLocked || confirmed > 0) && !confirm(`Are you absolutely sure? Type YES to proceed.`)) return;
+
+  try {
+    const deleteFn = firebase.app().functions('asia-east2').httpsCallable('deleteTeam');
+    const result   = await deleteFn({ teamId, force: true });
+    showToast(`"${teamName}" deleted (${result.data.matchesDeleted} matches removed)`);
+  } catch(err){ showToast('Failed: ' + err.message, true); }
+}
