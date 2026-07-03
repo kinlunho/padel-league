@@ -550,10 +550,11 @@ async function adminDeleteUser(uid, email){
 
 async function generateAllFixtures(){
   if(!confirm('Generate fixtures for ALL divisions that do not have them yet? Only do this after registration closes.')) return;
+  let total=0;
   for(const g of groups()){
-    const has = Object.values(S.matches).some(m=>m.group===g&&m.round);
-    if(!has) await generateFixtures(g);
+    const has=Object.values(S.matches).some(m=>m.group===g&&m.round);
+    if(!has){ await generateFixtures(g); total++; }
   }
-  showToast('All fixtures generated');
-  renderAdminStatus();
+  showToast(total>0?`Fixtures generated for ${total} division${total!==1?'s':''}`:'All divisions already have fixtures');
+  renderAdminPage(); // re-render current tab rather than assuming a specific element exists
 }
