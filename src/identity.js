@@ -108,7 +108,9 @@ function setNavUser(user){
 // ════════ ROLE GATING (UX LAYER) ════════
 function applyRoleGating(){
   const w = canWrite(), admin = canAdminister();
-  const canRegister = w && (isRegistrationOpen() || admin);
+  // Any signed-in user can register a team during open registration — the captain role
+  // is assigned by admin after the team exists. Closing registration locks this down.
+  const canRegister = admin || (isRegistrationOpen() && firebase.auth().currentUser !== null);
   ['nav-register-btn','hero-register-btn'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = canRegister ? '' : 'none';

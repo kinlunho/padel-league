@@ -89,11 +89,13 @@ async function registerTeam(){
     });
 
     // Auto-create teamMembers record so the registering user is immediately linked
-    // as captain of this team — no admin action needed for the person who registered.
-    // Admin can still reassign captaincy later via the Admin dashboard.
-    if(captainUid && isCaptainUser()){
+    // as captain of this team. Works for any signed-in user (viewer or captain) —
+    // the formal 'captain' role claim is assigned by admin separately, but the
+    // team link is created immediately so they can manage the team they registered.
+    if(captainUid){
       await MembersDB.set(captainUid, teamId, name, 'captain');
-      S.myTeamId = teamId; // update in-memory state immediately
+      S.myTeamId = teamId;
+      S.isCaptain = true; // treat as captain locally until admin formalises the claim
     }
 
     addLog(`${name} registered in ${group}`+(fixturesAlreadyExist?' (after fixtures generated — no auto matches)':''),'var(--accent)');
