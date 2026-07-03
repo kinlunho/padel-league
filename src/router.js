@@ -1,6 +1,22 @@
 // src/router.js
 // Page routing, rules sub-nav, and the shared group-tab helper used by 4 different pages.
 
+// ════════ MOBILE NAV ════════
+function toggleMobileNav(){
+  document.getElementById('nav-tabs').classList.toggle('open');
+}
+function closeMobileNav(){
+  document.getElementById('nav-tabs').classList.remove('open');
+}
+// Close mobile nav when tapping outside
+document.addEventListener('click', e => {
+  const nav = document.getElementById('nav-tabs');
+  const btn = document.getElementById('nav-hamburger');
+  if(nav && btn && !nav.contains(e.target) && !btn.contains(e.target)){
+    nav.classList.remove('open');
+  }
+});
+
 // ════════ ROUTING ════════
 function showPage(name,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));

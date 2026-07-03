@@ -31,6 +31,8 @@ body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-ser
 .nav-user{display:none;align-items:center;gap:8px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;}
 .nav-user-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);flex-shrink:0;}
 .nav-user-email{color:var(--text);font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;}
+.nav-hamburger{ display:none; flex-direction:column; gap:4px; cursor:pointer; padding:6px; border:none; background:transparent; margin-left:4px; }
+.nav-hamburger span{ display:block; width:20px; height:2px; background:var(--text); border-radius:2px; }
 .nav-logout{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;font-family:'Space Grotesk',sans-serif;}
 .nav-logout:hover{color:var(--red);}
 
@@ -207,4 +209,12 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   .hero h1{font-size:22px;}
   .stat-row{gap:18px;}
   .bracket-rounds{flex-direction:column;}
+
+  /* Mobile nav — hide tabs, show hamburger */
+  .nav-tabs{ display:none; position:fixed; top:52px; left:0; right:0; background:var(--surface); border-bottom:1px solid var(--border); flex-direction:column; padding:8px; gap:2px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.4); }
+  .nav-tabs.open{ display:flex; }
+  .nav-tab{ padding:10px 14px; font-size:14px; border-radius:6px; }
+  .nav-hamburger{ display:flex !important; }
+  .nav-user-email{ max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+  .nav-brand{ font-size:13px; }
 }

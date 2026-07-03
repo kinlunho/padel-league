@@ -64,20 +64,23 @@
 <!-- NAV -->
 <nav class="nav">
   <div class="nav-brand">⬡ PADEL SL 2026</div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('home',this)">Home</button>
-    <button class="nav-tab" onclick="showPage('standings',this)">Standings</button>
-    <button class="nav-tab" onclick="showPage('matches',this)">Matches</button>
-    <button class="nav-tab" onclick="showPage('schedule',this)">Schedule</button>
-    <button class="nav-tab" onclick="showPage('teams',this)">Teams</button>
-    <button class="nav-tab" onclick="showPage('submit',this)">Submit Score</button>
-    <button class="nav-tab" onclick="showPage('knockout',this)">Knockouts</button>
-    <button class="nav-tab" onclick="showPage('rules',this)">Rules</button>
-    <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this)" style="display:none;">⚙ Admin</button>
+  <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileNav()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-tabs" id="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('home',this);closeMobileNav()">Home</button>
+    <button class="nav-tab" onclick="showPage('standings',this);closeMobileNav()">Standings</button>
+    <button class="nav-tab" onclick="showPage('matches',this);closeMobileNav()">Matches</button>
+    <button class="nav-tab" onclick="showPage('schedule',this);closeMobileNav()">Schedule</button>
+    <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
+    <button class="nav-tab" onclick="showPage('submit',this);closeMobileNav()">Submit Score</button>
+    <button class="nav-tab" onclick="showPage('knockout',this);closeMobileNav()">Knockouts</button>
+    <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
+    <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this);closeMobileNav()" style="display:none;">⚙ Admin</button>
   </div>
   <div class="nav-user" id="nav-user">
     <div class="nav-user-dot"></div>
-    <span class="nav-user-email" id="nav-user-email">—</span>
+    <span class="nav-user-email" id="nav-user-email" onclick="openProfileModal()" style="cursor:pointer;" title="Edit profile">—</span>
     <button class="nav-logout" onclick="handleSignOut()">Sign out</button>
   </div>
   <button class="btn btn-ghost btn-sm" id="nav-join-btn" onclick="openModal('joinPlayerModal')" style="display:none;">Join as Player</button>
@@ -577,6 +580,40 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveUserRole()">Save Role</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <div class="modal-title">Edit Profile</div>
+    <div class="form-group">
+      <label class="form-label">Display Name</label>
+      <input class="form-input" id="profile-name" placeholder="Your name">
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Shown in the nav bar instead of your email address.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="profile-email" disabled style="opacity:0.5;">
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Email cannot be changed here — contact an admin.</div>
+    </div>
+    <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:16px;">
+      <div style="font-weight:600;font-size:12px;margin-bottom:10px;">Change Password</div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input class="form-input" id="profile-new-pw" type="password" placeholder="Min 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input class="form-input" id="profile-confirm-pw" type="password" placeholder="Repeat new password">
+      </div>
+      <div style="font-size:10px;color:var(--muted);">Leave blank to keep your current password. If your session is old, you may be asked to sign in again before the change takes effect.</div>
+    </div>
+    <p id="profile-error" style="color:#f87171;font-size:12px;min-height:16px;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('profileModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Save</button>
     </div>
   </div>
 </div>
