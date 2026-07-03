@@ -40,11 +40,12 @@ function renderTeamsList(group){
           ${t.captainEmail?`<div style="font-size:10px;color:var(--muted);">Registered by: ${t.captainEmail}</div>`:''}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${needsDivision?`
+          ${isAdminUser()?`
             <select class="form-select" id="div-sel-${t.id}" style="font-size:11px;padding:4px 8px;width:160px;">
-              ${DIVISIONS.map(d=>`<option value="${d}">${d}</option>`).join('')}
+              ${DIVISIONS.map(d=>`<option value="${d}"${d===t.group?' selected':''}>${d}</option>`).join('')}
+              ${t.group==='Unassigned'?'':''}
             </select>
-            <button class="btn btn-primary btn-sm" onclick="assignDivision('${t.id}')">Assign</button>`:''}
+            <button class="btn btn-${t.group==='Unassigned'?'primary':'ghost'} btn-sm" onclick="assignDivision('${t.id}')">${t.group==='Unassigned'?'Assign':'Move'}</button>`:''}
           ${editable?`<button class="btn btn-ghost btn-sm" onclick="openRosterEdit('${t.id}')">✎ Edit Roster</button>`:''}
         </div>
       </div>
