@@ -58,3 +58,30 @@ function renderHome(){
   feed.innerHTML=recent.length?recent.map(a=>`<div class="activity-item"><div class="activity-dot" style="background:${a.color}"></div><div>${a.msg} <span style="color:var(--muted);font-size:10px;">${a.time}</span></div></div>`).join(''):'<div style="color:var(--muted);font-size:12px;">No activity yet.</div>';
 }
 
+
+// Update all dynamic text that derives from S.config
+function applyConfigToUI(){
+  const c = S.config;
+  if(!c) return;
+
+  // Nav brand and browser title
+  const label = c.seasonLabel || 'Summer League 2026';
+  const shortLabel = (c.seasonSlug||'summer').charAt(0).toUpperCase()+(c.seasonSlug||'summer').slice(1)+' League '+(c.seasonYear||'2026').slice(2);
+  const navLbl = document.getElementById('nav-season-label');
+  if(navLbl) navLbl.textContent = shortLabel.toUpperCase();
+  document.title = `GO PARK × The One – ${label}`;
+
+  // Auth gate dates
+  const authDates = document.getElementById('auth-season-dates');
+  if(authDates && c.leagueStart && c.knockoutDay){
+    const fmt = d => new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    authDates.textContent = `${fmt(c.leagueStart)} – ${fmt(c.knockoutDay)}`;
+  }
+
+  // Hero dates
+  const heroDates = document.getElementById('hero-dates');
+  if(heroDates && c.leagueStart && c.knockoutDay){
+    const fmtShort = d => new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    heroDates.innerHTML = `📅 ${fmtShort(c.leagueStart)} – ${fmtShort(c.knockoutDay)} &nbsp;·&nbsp; ⏰ ${c.matchDays||'Sat & Sun'} ${c.matchHours||'7–11 PM'} &nbsp;·&nbsp; 💰 ${c.entryFee||'HKD 3,500'}/team`;
+  }
+}

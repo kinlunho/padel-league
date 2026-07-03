@@ -60,6 +60,15 @@ service cloud.firestore {
       allow read, write: if isAdmin() || request.auth.uid == uid;
     }
 
+    // ── /config ───────────────────────────────────────────────────────────────
+    // League config readable by all signed-in users (nav brand, dates etc).
+    // Only admins can write. activeSeason can only be changed via Cloud Function
+    // (which has the in-progress match guard) — direct client writes are blocked.
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // ── /knockouts ────────────────────────────────────────────────────────────
     match /knockouts/{docId} {
       allow read:  if isSignedIn();

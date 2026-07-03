@@ -23,7 +23,7 @@
   <div class="auth-card">
     <div class="auth-logo">GO PARK Sports × The One</div>
     <div class="auth-title">Padel <span>Summer</span> League 2026</div>
-    <div class="auth-dates">11 July – 4 October 2026</div>
+    <div class="auth-dates" id="auth-season-dates">11 July – 4 October 2026</div>
 
     <!-- Sign-in view -->
     <div id="auth-signin-view">
@@ -63,7 +63,7 @@
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="nav-brand">⬡ PADEL SL 2026</div>
+  <div class="nav-brand">⬡ <span id="nav-season-label">SUMMER LEAGUE 26</span></div>
   <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileNav()" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
@@ -93,7 +93,7 @@
   <div class="hero">
     <div class="hero-org">GO PARK Sports × The One</div>
     <h1>PADEL <span>SUMMER</span><br>LEAGUE 2026</h1>
-    <div class="hero-dates">📅 11 Jul – 4 Oct 2026 &nbsp;·&nbsp; ⏰ Sat & Sun 7–11 PM &nbsp;·&nbsp; 💰 HKD 3,500/team</div>
+    <div class="hero-dates" id="hero-dates">📅 11 Jul – 4 Oct 2026 &nbsp;·&nbsp; ⏰ Sat &amp; Sun 7–11 PM &nbsp;·&nbsp; 💰 HKD 3,500/team</div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button class="btn btn-primary" id="hero-register-btn" onclick="openModal('registerModal')" style="display:none;">Register Team</button>
       <button class="btn btn-ghost" onclick="showPage('rules',null)">Rules</button>
@@ -742,6 +742,7 @@
 <script src="src/data/teams.js"></script>
 <script src="src/data/matches.js"></script>
 <script src="src/data/members.js"></script>
+<script src="src/data/config.js"></script>
 <script src="src/data/users.js"></script>
 <script src="src/seed-data.js"></script>
 <script src="src/identity.js"></script>

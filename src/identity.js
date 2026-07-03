@@ -166,6 +166,56 @@ function openSignIn(){
 }
 function handleSignOut(){ firebaseAuth.signOut(); }
 
+// ════════ PROFILE ════════
+function openProfileModal(){
+  const user = firebaseAuth.currentUser;
+  if(!user) return;
+  document.getElementById('profile-name').value  = user.displayName || '';
+  document.getElementById('profile-email').value = user.email || '';
+  document.getElementById('profile-new-pw').value     = '';
+  document.getElementById('profile-confirm-pw').value = '';
+  document.getElementById('profile-error').textContent = '';
+  openModal('profileModal');
+}
+
+async function saveProfile(){
+  const user    = firebaseAuth.currentUser;
+  const errEl   = document.getElementById('profile-error');
+  const newName = document.getElementById('profile-name').value.trim();
+  const newPw   = document.getElementById('profile-new-pw').value;
+  const confPw  = document.getElementById('profile-confirm-pw').value;
+  errEl.textContent = '';
+
+  if(!newName){ errEl.textContent = 'Display name cannot be empty.'; return; }
+
+  try {
+    // Update display name
+    if(newName !== user.displayName){
+      await user.updateProfile({ displayName: newName });
+      // Refresh nav immediately
+      setNavUser(firebaseAuth.currentUser);
+      // Update Firestore user doc so admin sees the new name
+      await db.collection('users').doc(user.uid).update({ displayName: newName }).catch(()=>{});
+    }
+
+    // Update password if provided
+    if(newPw){
+      if(newPw.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; return; }
+      if(newPw !== confPw){ errEl.textContent = 'Passwords do not match.'; return; }
+      await user.updatePassword(newPw);
+    }
+
+    closeModal('profileModal');
+    showToast('Profile updated');
+  } catch(err){
+    if(err.code === 'auth/requires-recent-login'){
+      errEl.textContent = 'Session expired — sign out and back in, then try again.';
+    } else {
+      errEl.textContent = err.message;
+    }
+  }
+}
+
 function openProfileModal(){
   const user = firebaseAuth.currentUser;
   if(!user) return;
@@ -293,6 +343,12 @@ const IS_LOCAL_DEV = false;
 if (!IS_LOCAL_DEV){
   firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
     if (firebaseUser){
+      // Config loads first — it sets ACTIVE_SEASON and REGISTRATION_CUTOFF
+      // which TeamsDB and MatchesDB queries depend on
+      ConfigDB.subscribe(() => {
+        applyConfigToUI();
+        renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+      });
       await resolveIdentity(firebaseUser);
       TeamsDB.subscribe(() => {
         renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
@@ -305,6 +361,7 @@ if (!IS_LOCAL_DEV){
       applyRoleGating();
       renderHome();
     } else {
+      ConfigDB.stop();
       TeamsDB.stop();
       MatchesDB.stop();
       hideApp();

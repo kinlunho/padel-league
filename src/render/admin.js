@@ -206,47 +206,130 @@ async function renderAdminUsers(){
 
 // ── Section 4: Season Config ──────────────────────────────────────────────────
 function renderAdminSeason(){
+  const c = S.config || {};
+  const locked = c.seasonLocked;
   document.getElementById('admin-season').innerHTML=`
     <div class="alert alert-blue" style="margin-bottom:14px;font-size:12px;">
-      <strong>What this section shows:</strong> The active season label, key dates, and fixture generation.
-      All teams and matches in Firestore are tagged with the season name — changing
-      <code>ACTIVE_SEASON</code> in <code>src/state.js</code> instantly hides past data and starts
-      a clean slate, without deleting anything. Past seasons remain in Firestore and can be queried
-      for historical records at any time.
+      <strong>What this section does:</strong> Controls all league dates, season label, and entry fee.
+      Changes take effect immediately for all users — no redeploy needed.
       <br><br>
-      <strong>To start a new season:</strong> Change <code>ACTIVE_SEASON</code> to e.g. <code>2026-winter</code>
-      → update <code>REGISTRATION_CUTOFF</code> and <code>leagueDates()</code> → redeploy with
-      <code>firebase deploy --only hosting</code>.
+      <strong>Season label</strong> drives the nav brand, browser title, and login screen.
+      <strong>Active season</strong> is the Firestore filter — changing it hides all current data and starts a clean slate.
+      The season is <strong>locked</strong> once fixtures are generated to prevent accidental resets.
     </div>
-    <div class="card">
-      <div style="font-weight:700;font-size:13px;margin-bottom:12px;">🗓 Current Season</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:12px;">📋 Current Season Info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Active Season</div>
-          <div style="font-weight:700;font-size:18px;color:var(--accent);">${ACTIVE_SEASON}</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Season Label (shown in UI)</div>
+          <input class="form-input" id="cfg-label" value="${c.seasonLabel||''}" placeholder="e.g. Summer League 2026">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Registration</div>
-          <div style="font-weight:700;font-size:18px;color:${isRegistrationOpen()?'var(--accent)':'var(--red)'};">${isRegistrationOpen()?'OPEN':'CLOSED'}</div>
-          <div style="font-size:11px;color:var(--muted);">Cutoff: ${REGISTRATION_CUTOFF}</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Entry Fee</div>
+          <input class="form-input" id="cfg-fee" value="${c.entryFee||'HKD 3,500'}" placeholder="HKD 3,500">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Registration Cutoff</div>
+          <input class="form-input" id="cfg-cutoff" type="date" value="${c.registrationCutoff||''}">
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">League Start</div>
-          <div style="font-weight:700;font-size:18px;">11 Jul 2026</div>
+          <input class="form-input" id="cfg-start" type="date" value="${c.leagueStart||''}">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">League End (last match weekend)</div>
+          <input class="form-input" id="cfg-end" type="date" value="${c.leagueEnd||''}">
         </div>
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Knockout Day</div>
-          <div style="font-weight:700;font-size:18px;">4 Oct 2026</div>
+          <input class="form-input" id="cfg-knockout" type="date" value="${c.knockoutDay||''}">
         </div>
       </div>
-      <div style="padding-top:12px;border-top:1px solid var(--border);">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
-          Generate fixtures for all divisions that don't have them yet. Only run this after
-          registration closes — adding teams after fixture generation means they get no matches.
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="generateAllFixtures()">⚙ Generate All Fixtures</button>
-      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveLeagueConfig()">Save Changes</button>
+      <p id="cfg-msg" style="font-size:11px;min-height:16px;margin-top:8px;"></p>
+    </div>
+
+    <div class="card" style="border:1px solid ${locked?'var(--red)':'var(--border)'};">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px;">🔄 Season Change ${locked?'<span style="color:var(--red);font-size:11px;">· LOCKED — fixtures generated</span>':''}</div>
+      ${locked
+        ? `<div style="font-size:12px;color:var(--muted);">Season is locked because fixtures have been generated. To start a new season you must first confirm all matches are complete.</div>
+           <button class="btn btn-danger btn-sm" style="margin-top:10px;" onclick="unlockSeason()">⚠ Unlock Season (use with caution)</button>`
+        : `<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Changing the active season immediately hides ALL current teams, matches, and standings — they remain in Firestore tagged with the old season name. New teams register under the new season. This cannot be undone without a code change.</div>
+           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+             <div><label class="form-label" style="font-size:10px;">Season Slug</label>
+               <select class="form-select" id="cfg-new-slug">
+                 <option value="summer">summer</option>
+                 <option value="winter">winter</option>
+                 <option value="spring">spring</option>
+               </select>
+             </div>
+             <div><label class="form-label" style="font-size:10px;">Year</label>
+               <input class="form-input" id="cfg-new-year" value="${new Date().getFullYear()}" placeholder="2027">
+             </div>
+             <div style="display:flex;align-items:flex-end;">
+               <button class="btn btn-danger btn-sm" style="width:100%;" onclick="changeSeasonWithGuard()">Start New Season</button>
+             </div>
+           </div>`
+      }
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="generateAllFixtures()">⚙ Generate All Fixtures</button>
+      ${!locked?`<button class="btn btn-ghost btn-sm" onclick="lockSeasonNow()">🔒 Lock Season</button>`:''}
     </div>`;
+}
+
+async function saveLeagueConfig(){
+  const msgEl = document.getElementById('cfg-msg');
+  msgEl.style.color = '#f87171';
+  msgEl.textContent = '';
+  try {
+    await ConfigDB.save({
+      seasonLabel:        document.getElementById('cfg-label').value.trim(),
+      entryFee:           document.getElementById('cfg-fee').value.trim(),
+      registrationCutoff: document.getElementById('cfg-cutoff').value,
+      leagueStart:        document.getElementById('cfg-start').value,
+      leagueEnd:          document.getElementById('cfg-end').value,
+      knockoutDay:        document.getElementById('cfg-knockout').value,
+    });
+    msgEl.style.color = '#4ade80';
+    msgEl.textContent = 'Saved — changes are live for all users immediately.';
+  } catch(err){ msgEl.textContent = 'Failed: ' + err.message; }
+}
+
+async function changeSeasonWithGuard(){
+  const slug = document.getElementById('cfg-new-slug').value;
+  const year = document.getElementById('cfg-new-year').value.trim();
+  if(!year || isNaN(year)){ showToast('Enter a valid year', true); return; }
+  const newSeason = `${year}-${slug}`;
+  const label     = `${slug.charAt(0).toUpperCase()+slug.slice(1)} League ${year}`;
+  const confirmed = confirm(
+    `⚠ START NEW SEASON: ${label}\n\n` +
+    `Active season will change from "${ACTIVE_SEASON}" to "${newSeason}".\n\n` +
+    `ALL current teams, matches, and standings will be hidden immediately.\n` +
+    `They are NOT deleted — they remain in Firestore tagged "${ACTIVE_SEASON}".\n\n` +
+    `This affects every logged-in user right now. Continue?`
+  );
+  if(!confirmed) return;
+  try {
+    await ConfigDB.changeSeason(newSeason, label, slug, year);
+    showToast(`Season changed to ${label}`);
+    renderAdminSeason();
+  } catch(err){ showToast('Blocked: ' + err.message, true); }
+}
+
+async function lockSeasonNow(){
+  if(!confirm('Lock this season? Admins will need to unlock manually to start a new one.')) return;
+  await ConfigDB.lockSeason();
+  showToast('Season locked');
+  renderAdminSeason();
+}
+
+async function unlockSeason(){
+  if(!confirm('⚠ Unlock season? This allows starting a new season which hides all current data.')) return;
+  await db.collection('config').doc('league').set({ seasonLocked: false }, { merge: true });
+  showToast('Season unlocked');
+  renderAdminSeason();
+}
 }
 
 // ── User action helpers ───────────────────────────────────────────────────────
