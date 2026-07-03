@@ -8,17 +8,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="src/firebase-config.js"></script>
 <script>
-  // Initialize Firebase inline so db, firebaseAuth are available to every script below.
-  // firebaseConfig is defined here directly — src/firebase-config.js is no longer needed.
-  const firebaseConfig = {
-    apiKey: "AIzaSyBKQV5UidJ_fqVAqh_RxGvWAcuTZ7vD_rw",
-    authDomain: "padel-league-hk.firebaseapp.com",
-    projectId: "padel-league-hk",
-    storageBucket: "padel-league-hk.firebasestorage.app",
-    messagingSenderId: "932670962217",
-    appId: "1:932670962217:web:9de9122ecd816c32a3fa38"
-  };
   firebase.initializeApp(firebaseConfig);
   const db           = firebase.firestore();
   const firebaseAuth = firebase.auth();
