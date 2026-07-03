@@ -154,10 +154,22 @@ async function scheduleMatch(){
   const time=document.getElementById('sch-time').value;
   const court=parseInt(document.getElementById('sch-court').value);
   if(!t1||!t2||t1===t2){showToast('Select two different teams',true);return;}
+  // Check for slot conflict (same court/time/date)
   const conflict=Object.values(S.matches).find(m=>m.date===date&&m.time===time&&m.court===court);
   if(conflict){
     document.getElementById('sch-conflict').style.display='block';
     document.getElementById('sch-conflict').textContent=`⚠ Court ${court} at ${time} already booked by ${tn(conflict.t1)} vs ${tn(conflict.t2)}`;
+    return;
+  }
+  // Check for duplicate pairing (same two teams already have a scheduled/confirmed match)
+  const duplicate=Object.values(S.matches).find(m=>
+    m.season===ACTIVE_SEASON &&
+    ((m.t1===t1&&m.t2===t2)||(m.t1===t2&&m.t2===t1)) &&
+    ['scheduled','pending-confirm','confirmed'].includes(m.status)
+  );
+  if(duplicate){
+    document.getElementById('sch-conflict').style.display='block';
+    document.getElementById('sch-conflict').textContent=`⚠ ${tn(t1)} vs ${tn(t2)} already has a ${duplicate.status} match on ${duplicate.date||'TBD'}`;
     return;
   }
   document.getElementById('sch-conflict').style.display='none';
@@ -171,4 +183,3 @@ async function scheduleMatch(){
     showToast('Failed to schedule match: ' + err.message, true);
   }
 }
-

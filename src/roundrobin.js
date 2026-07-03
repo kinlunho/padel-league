@@ -33,8 +33,9 @@ async function generateFixtures(group){
   const allMatches={};
   rounds.forEach((pairs,ri)=>{
     pairs.forEach(([t1,t2])=>{
-      const id=uid();
-      allMatches[id]={id,group,t1,t2,date:null,time:null,court:null,round:ri+1,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
+      const [a,b]=[t1,t2].sort();
+      const id=`${a}_vs_${b}_r${ri+1}`;
+      allMatches[id]={id,group,t1,t2,date:null,time:null,court:null,round:ri+1,season:ACTIVE_SEASON,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
     });
   });
   try {
