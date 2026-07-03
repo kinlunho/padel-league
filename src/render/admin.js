@@ -1,15 +1,153 @@
 // src/render/admin.js
 // Admin dashboard — visible only to users with role:'admin'.
 
+let _adminTab = 'active'; // tracks current admin tab
+
 function renderAdminPage(){
   if(!isAdminUser()){
     document.getElementById('admin-container').innerHTML='<div class="alert alert-warn">Admin access required.</div>';
     return;
   }
-  renderAdminStatus();
-  renderAdminActions();
-  renderAdminUsers();
-  renderAdminSeason();
+  // Render the tab shell once, then render the active tab content
+  const container = document.getElementById('admin-container');
+  // Count pending items for badge
+  const disputes  = Object.values(S.matches).filter(m=>m.status==='disputed').length;
+  const pending   = Object.values(S.matches).filter(m=>m.status==='pending-confirm').length;
+  const unassigned= Object.values(S.teams).filter(t=>t.group==='Unassigned').length;
+  const activeBadge = (disputes+pending) > 0
+    ? `<span style="background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">${disputes+pending}</span>` : '';
+  const teamBadge = unassigned > 0
+    ? `<span style="background:var(--warn);color:#000;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">${unassigned}</span>` : '';
+
+  container.innerHTML = `
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;">
+      ${[
+        ['active',  `Active Season${activeBadge}`],
+        ['teams',   `Team Management${teamBadge}`],
+        ['users',   'User Management'],
+        ['league',  'League Setup'],
+      ].map(([id,label])=>`
+        <button onclick="switchAdminTab('${id}')" id="atab-${id}"
+          style="padding:8px 16px;border:none;border-bottom:2px solid ${_adminTab===id?'var(--brand)':'transparent'};
+          background:transparent;color:${_adminTab===id?'var(--text)':'var(--muted)'};
+          font-size:13px;font-weight:${_adminTab===id?'600':'400'};cursor:pointer;
+          font-family:'Space Grotesk',sans-serif;white-space:nowrap;transition:all 0.15s;">
+          ${label}
+        </button>`).join('')}
+    </div>
+    <div id="admin-tab-content"></div>`;
+
+  renderAdminTabContent();
+}
+
+function switchAdminTab(tab){
+  _adminTab = tab;
+  renderAdminPage();
+}
+
+function renderAdminTabContent(){
+  const el = document.getElementById('admin-tab-content');
+  if(!el) return;
+  if(_adminTab === 'active'){
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">League Status</div>
+      <div id="admin-status"></div>
+      <div style="font-weight:700;font-size:13px;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px;">Pending Actions</div>
+      <div id="admin-actions"></div>`;
+    renderAdminStatus();
+    renderAdminActions();
+  } else if(_adminTab === 'teams'){
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Team Management</div>
+      <div id="admin-teams-content"></div>`;
+    renderAdminTeams();
+  } else if(_adminTab === 'users'){
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:var(--brand);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">User Management</div>
+      <div id="admin-users"></div>`;
+    renderAdminUsers();
+  } else if(_adminTab === 'league'){
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">League Setup</div>
+      <div id="admin-season"></div>`;
+    renderAdminSeason();
+  }
+}
+
+// ── Team Management tab ───────────────────────────────────────────────────────
+function renderAdminTeams(){
+  const container = document.getElementById('admin-teams-content');
+  if(!container) return;
+  const unassigned = Object.values(S.teams).filter(t=>t.group==='Unassigned');
+  const DIVISIONS  = ['Gold Division','High Silver Division','Low Silver Division'];
+  const allGroups  = groups();
+
+  let html = '';
+  if(unassigned.length){
+    html += `<div class="alert alert-warn" style="margin-bottom:16px;">
+      ⚠ ${unassigned.length} team${unassigned.length!==1?'s':''} awaiting division assignment —
+      ${unassigned.map(t=>`<strong>${t.name}</strong>`).join(', ')}
+    </div>`;
+  }
+
+  // Group tabs
+  html += `<div class="group-tabs" style="margin-bottom:16px;">
+    ${allGroups.map(g=>`<button class="group-tab" onclick="filterAdminTeams('${g}',this)" style="padding:6px 14px;border-radius:6px;border:none;background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer;margin-right:4px;">${g}</button>`).join('')}
+  </div>
+  <div id="admin-teams-list"></div>`;
+
+  container.innerHTML = html;
+
+  // Auto-click Unassigned if there are any, else first group
+  const firstTab = container.querySelector('.group-tab');
+  if(firstTab){
+    const unassignedTab = [...container.querySelectorAll('.group-tab')]
+      .find(b=>b.textContent.trim()==='Unassigned');
+    filterAdminTeams(unassigned.length ? 'Unassigned' : allGroups[0],
+      unassigned.length ? unassignedTab : firstTab);
+  }
+}
+
+function filterAdminTeams(group, btn){
+  // Highlight active tab
+  document.querySelectorAll('#admin-teams-content .group-tab').forEach(b=>{
+    b.style.background='var(--surface2)';b.style.color='var(--muted)';b.style.fontWeight='400';
+  });
+  if(btn){ btn.style.background='var(--brand)';btn.style.color='#fff';btn.style.fontWeight='600'; }
+
+  const DIVISIONS = ['Gold Division','High Silver Division','Low Silver Division'];
+  const teams = teamsByGroup(group);
+  const list  = document.getElementById('admin-teams-list');
+  if(!list) return;
+  if(!teams.length){ list.innerHTML='<div style="color:var(--muted);font-size:13px;">No teams in this group.</div>'; return; }
+
+  list.innerHTML = `<div class="grid-2">${teams.map(t=>`
+    <div class="card" style="border-left:3px solid ${t.group==='Unassigned'?'var(--warn)':'var(--accent)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:700;font-size:14px;">${t.name}</div>
+          ${t.captainEmail?`<div style="font-size:10px;color:var(--muted);">Registered by: ${t.captainEmail}</div>`:''}
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+          <select class="form-select" id="div-sel-${t.id}" style="font-size:11px;padding:3px 6px;width:150px;">
+            ${DIVISIONS.map(d=>`<option value="${d}"${d===t.group?' selected':''}>${d}</option>`).join('')}
+          </select>
+          <button class="btn btn-${t.group==='Unassigned'?'primary':'ghost'} btn-sm"
+            onclick="assignDivision('${t.id}')">${t.group==='Unassigned'?'Assign':'Move'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="openRosterEdit('${t.id}')">✎ Roster</button>
+          <button class="btn btn-danger btn-sm" onclick="adminDeleteTeam('${t.id}','${t.name.replace(/'/g,"\\'")}')">✕</button>
+        </div>
+      </div>
+      <div>${(t.players||[]).map((p,i)=>{
+        const nprp=p.nprp?`<span style="font-size:9px;color:var(--brand);font-weight:600;"> NPRP ${p.nprp}</span>`:'';
+        return `<div style="font-size:12px;color:var(--muted);margin-bottom:1px;">
+          👤 ${p.name||'—'}${i===0?' <span style="font-size:9px;color:var(--accent);background:rgba(74,222,128,0.1);padding:1px 4px;border-radius:4px;">cap</span>':''}
+          ${p.phone?`· ${p.phone}`:''}${nprp}</div>`;
+      }).join('')}</div>
+      ${(()=>{const r=(t.players||[]).map(p=>parseFloat(p.nprp)).filter(n=>!isNaN(n));
+        return r.length?`<div style="font-size:10px;color:var(--brand);margin-top:6px;">avg NPRP ${(r.reduce((a,b)=>a+b,0)/r.length).toFixed(1)}</div>`:'';}
+      )()}
+    </div>`).join('')}</div>`;
 }
 
 // ── Section 1: League Status ──────────────────────────────────────────────────
