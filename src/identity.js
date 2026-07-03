@@ -122,6 +122,8 @@ function applyRoleGating(){
   if (schBtn) schBtn.style.display = admin ? '' : 'none';
   const joinBtn = document.getElementById('nav-join-btn');
   if (joinBtn) joinBtn.style.display = !w ? '' : 'none';
+  const profileBtn = document.getElementById('nav-profile-btn');
+  if (profileBtn) profileBtn.style.display = S.userEmail ? '' : 'none';
   const adminTab = document.getElementById('nav-admin-tab');
   if (adminTab) adminTab.style.display = admin ? '' : 'none';
   const adminLabel = document.getElementById('admin-season-label');
@@ -163,6 +165,45 @@ function openSignIn(){
     });
 }
 function handleSignOut(){ firebaseAuth.signOut(); }
+
+function openProfileModal(){
+  const user = firebaseAuth.currentUser;
+  if(!user) return;
+  document.getElementById('profile-name').value  = user.displayName || '';
+  document.getElementById('profile-email').value = user.email || '';
+  document.getElementById('profile-password').value = '';
+  const msgEl = document.getElementById('profile-msg');
+  msgEl.textContent = '';
+  msgEl.style.color = '#f87171';
+  document.getElementById('profileModal').classList.add('open');
+}
+
+async function saveProfile(){
+  const user     = firebaseAuth.currentUser;
+  const name     = document.getElementById('profile-name').value.trim();
+  const password = document.getElementById('profile-password').value;
+  const msgEl    = document.getElementById('profile-msg');
+  msgEl.style.color = '#f87171';
+  msgEl.textContent = '';
+  try {
+    if(name && name !== user.displayName){
+      await user.updateProfile({ displayName: name });
+      await db.collection('users').doc(user.uid).set({ displayName: name }, { merge: true });
+    }
+    if(password){
+      if(password.length < 6){ msgEl.textContent = 'Password must be at least 6 characters.'; return; }
+      await user.updatePassword(password);
+    }
+    setNavUser(firebaseAuth.currentUser);
+    msgEl.style.color = '#4ade80';
+    msgEl.textContent = 'Profile updated!';
+    setTimeout(() => closeModal('profileModal'), 1200);
+  } catch(err){
+    msgEl.textContent = err.code === 'auth/requires-recent-login'
+      ? 'Sign out and back in first, then change your password.'
+      : err.message;
+  }
+}
 
 function showResetView(){
   document.getElementById('auth-signin-view').style.display = 'none';

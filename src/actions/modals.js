@@ -3,6 +3,7 @@
 
 // ════════ MODALS ════════
 function openModal(id){
+  if(id==='profileModal'){ openProfileModal(); return; }
   if(id==='scheduleModal'){ populateSchGroups(); populateDates('sch-date'); populateDates('rsch-date'); }
   if(id==='registerModal'){
     if(S.myTeamId && !isAdminUser()){

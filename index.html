@@ -81,6 +81,7 @@
     <button class="nav-logout" onclick="handleSignOut()">Sign out</button>
   </div>
   <button class="btn btn-ghost btn-sm" id="nav-join-btn" onclick="openModal('joinPlayerModal')" style="display:none;">Join as Player</button>
+  <button class="btn btn-ghost btn-sm" id="nav-profile-btn" onclick="openModal('profileModal')" style="display:none;">My Profile</button>
   <button class="btn btn-primary btn-sm" id="nav-register-btn" onclick="openModal('registerModal')" style="display:none;">+ Register Team</button>
 </nav>
 
@@ -523,6 +524,32 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('joinPlayerModal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmJoinPlayer()">Link My Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <div class="modal-title">My Profile</div>
+    <div class="form-group">
+      <label class="form-label">Display Name</label>
+      <input class="form-input" id="profile-name" placeholder="Your name (shown in nav and to admin)">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">This replaces your email address in the navigation bar.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="profile-email" disabled style="opacity:0.5;cursor:not-allowed;">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Email cannot be changed here — contact an admin.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">New Password <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(leave blank to keep current)</span></label>
+      <input class="form-input" id="profile-password" type="password" placeholder="Min 6 characters">
+    </div>
+    <p id="profile-msg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('profileModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Save</button>
     </div>
   </div>
 </div>
