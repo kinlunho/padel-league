@@ -62,10 +62,40 @@ function renderTeamsList(group){
 async function assignDivision(teamId){
   const division = document.getElementById(`div-sel-${teamId}`)?.value;
   if(!division){ showToast('Select a division first', true); return; }
+
+  const team = S.teams[teamId];
+  const currentGroup = team?.group;
+  const isMove = currentGroup && currentGroup !== 'Unassigned' && currentGroup !== division;
+
+  if(isMove){
+    const orphanedFixtures = Object.values(S.matches).filter(m =>
+      m.season === ACTIVE_SEASON &&
+      m.group === currentGroup &&
+      (m.teamA === teamId || m.teamB === teamId)
+    );
+    if(orphanedFixtures.length > 0){
+      const played = orphanedFixtures.filter(m => m.status === 'confirmed' || m.status === 'pending').length;
+      const warning = [
+        `⚠ DIVISION MOVE WARNING`,
+        ``,
+        `Moving "${team.name}" from ${currentGroup} → ${division}`,
+        `will ORPHAN ${orphanedFixtures.length} fixture${orphanedFixtures.length !== 1 ? 's' : ''} in ${currentGroup}`,
+        played > 0 ? `(${played} already played or pending confirmation).` : `(none played yet).`,
+        ``,
+        `These matches will still exist in Firestore tagged to ${currentGroup}`,
+        `but won't appear in the new division's standings or schedule.`,
+        ``,
+        `You will need to manually delete or reassign these fixtures.`,
+        ``,
+        `Proceed anyway?`
+      ].join('\n');
+      if(!confirm(warning)) return;
+    }
+  }
+
   try {
     await TeamsDB.update(teamId, { group: division });
-    showToast(`Division assigned: ${division}`);
-    // Also update the teamMembers record if one exists
+    showToast(`Division ${isMove ? 'changed' : 'assigned'}: ${division}`);
     const snap = await db.collection('teamMembers')
       .where('season','==',ACTIVE_SEASON)
       .where('teamId','==',teamId).get();

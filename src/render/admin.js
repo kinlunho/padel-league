@@ -345,7 +345,13 @@ async function renderAdminUsers(){
 // ── Section 4: Season Config ──────────────────────────────────────────────────
 function renderAdminSeason(){
   const c = S.config || {};
-  const locked = c.seasonLocked;
+  const locked = c.seasonLocked;// Fixture generation state: check each division (excluding Unassigned)
+  const activeDivs = groups().filter(g => g !== 'Unassigned');
+  const divsWithFixtures = activeDivs.filter(g =>
+    Object.values(S.matches).some(m => m.group === g && m.round)
+  );
+  const allFixturesGenerated = activeDivs.length > 0 && divsWithFixtures.length === activeDivs.length;
+  const someFixturesGenerated = divsWithFixtures.length > 0;
   document.getElementById('admin-season').innerHTML=`
     <div class="alert alert-blue" style="margin-bottom:14px;font-size:12px;">
       <strong>What this section does:</strong> Controls all league dates, season label, and entry fee.
@@ -413,12 +419,20 @@ function renderAdminSeason(){
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
       <div style="margin-bottom:12px;">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
-          <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="generateAllFixtures()">⚙ Generate All Fixtures</button>
+          ${allFixturesGenerated
+            ? `<button class="btn btn-ghost btn-sm" style="white-space:nowrap;opacity:0.45;cursor:not-allowed;" disabled>✓ Fixtures Generated</button>`
+            : `<button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="generateAllFixtures()">⚙ Generate All Fixtures</button>`
+          }
           <div style="font-size:11px;color:var(--muted);">
-            Creates the full round-robin match schedule for every division that doesn't have fixtures yet.
-            <strong>Only run this after registration closes (${REGISTRATION_CUTOFF})</strong> —
-            any team added after generation gets no automatic matches and must be scheduled manually.
-            Cannot be re-run for a division once done.
+            ${allFixturesGenerated
+              ? `All ${activeDivs.length} division${activeDivs.length!==1?'s':''} have fixtures. To add a team after generation, schedule their matches manually.`
+              : someFixturesGenerated
+                ? `${divsWithFixtures.length} of ${activeDivs.length} divisions have fixtures. Running again will generate for remaining divisions only.
+                   <strong>Only run after registration closes (${REGISTRATION_CUTOFF})</strong>.`
+                : `Creates the full round-robin match schedule for every division.
+                   <strong>Only run this after registration closes (${REGISTRATION_CUTOFF})</strong> —
+                   any team added after generation gets no automatic matches and must be scheduled manually.`
+            }
           </div>
         </div>
         ${!locked?`<div style="display:flex;align-items:flex-start;gap:10px;">
