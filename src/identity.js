@@ -65,12 +65,13 @@ async function resolveIdentity(firebaseUser){
   S.isAdmin   = role === 'admin';
   S.isCaptain = role === 'captain';
 
-  if (S.userEmail && !S.isAdmin){
-    const match = Object.values(S.teams).find(t =>
-      t.email && t.email.toLowerCase() === S.userEmail.toLowerCase()
-    );
-    if (match) S.myTeamId = match.id;
-  }
+  // Use teamId directly from the custom claim — this is set by the createUser/setUserRole
+  // Cloud Function when a captain is assigned. Email matching was the old approach and only
+  // worked when the captain's login email happened to match team.email exactly, which is
+  // never true for real captains who have personal email addresses.
+  S.myTeamId = tokenResult.claims.teamId || null;
+
+  // Player claim-code linking still uses email matching against roster slots
   if (S.userEmail){
     Object.values(S.teams).forEach(t => {
       (t.players || []).forEach(p => {
