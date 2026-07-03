@@ -72,6 +72,8 @@ function renderMatchesList(group){
         actions=isAdminUser()
           ?`<button class="btn btn-danger btn-sm" style="width:100%;" onclick="openDisputeResolve('${m.id}')">⚖ Resolve Dispute</button>`
           :`<div style="font-size:11px;color:var(--muted);text-align:center;">Under review by admin</div>`;
+      } else if(m.status==='confirmed' && isAdminUser()){
+        actions=`<button class="btn btn-ghost btn-sm" style="font-size:10px;opacity:0.7;" onclick="adminEditConfirmedScore('${m.id}')">✎ Edit Score (Admin)</button>`;
       } else if(canActOnMatch(m)){
         if(m.status==='scheduled') actions=`<button class="btn btn-primary btn-sm" onclick="openScoreModal('${m.id}')">Submit Score</button><button class="btn btn-ghost btn-sm" onclick="openReschedule('${m.id}')">Reschedule</button>`;
         if(m.status==='pending-confirm'){
@@ -79,14 +81,21 @@ function renderMatchesList(group){
           else actions=`<button class="btn btn-warn btn-sm" onclick="openScoreModal('${m.id}',true)">Confirm Score</button><button class="btn btn-danger btn-sm" onclick="disputeScore('${m.id}')">Dispute</button>`;
         }
       }
+      const r2=sd?calcResult(sd):null;
+      const winnerName=r2&&r2.result!=='draw'?tn(r2.result==='win1'?m.t1:m.t2):null;
+      const isDone=m.status==='confirmed';
       return `<div class="match-card ${cardCls}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span class="chip ${chipCls}">${chipTxt}</span>
           <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">Court ${m.court}</span>
         </div>
-        <div class="match-teams"><span>${tn(m.t1)}</span><span class="match-vs">vs</span><span>${tn(m.t2)}</span></div>
-        <div class="match-meta"><span>📅 ${m.date}</span><span>🕖 ${m.time}</span></div>
+        ${isDone&&winnerName
+          ?`<div style="margin-bottom:4px;"><div style="font-size:18px;font-weight:700;color:var(--accent);">${winnerName}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Winner</div></div>
+            <div class="match-teams" style="font-size:12px;color:var(--muted);margin-bottom:2px;"><span>${tn(m.t1)}</span><span class="match-vs">vs</span><span>${tn(m.t2)}</span></div>`
+          :`<div class="match-teams"><span>${tn(m.t1)}</span><span class="match-vs">vs</span><span>${tn(m.t2)}</span></div>`}
         ${scoreHtml}
+        <div class="match-meta" style="font-size:10px;color:var(--muted);margin-top:4px;"><span>📅 ${m.date}</span><span>🕖 ${m.time}</span></div>
+        ${m.rescheduleRequest?`<div style="font-size:10px;color:var(--brand);margin-top:4px;padding:4px 8px;background:rgba(67,131,250,0.08);border-radius:4px;">⏳ Reschedule pending admin approval → ${m.rescheduleRequest.proposedDate} ${m.rescheduleRequest.proposedTime}</div>`:''}
         <div class="match-actions">${actions}</div>
       </div>`;
     }).join('');

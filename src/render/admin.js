@@ -205,6 +205,7 @@ function renderAdminActions(){
   const matches  = Object.values(S.matches);
   const disputed = matches.filter(m=>m.status==='disputed');
   const pending  = matches.filter(m=>m.status==='pending-confirm');
+  const rescheduleRequests = matches.filter(m=>m.rescheduleRequest);
 
   const disputeCards = disputed.length
     ? disputed.map(m=>`
@@ -229,15 +230,38 @@ function renderAdminActions(){
         </div>`).join('')
     : '<div style="color:var(--muted);font-size:13px;">No scores awaiting confirmation.</div>';
 
+  const rescheduleCards = rescheduleRequests.length
+    ? rescheduleRequests.map(m=>{
+        const r=m.rescheduleRequest;
+        const requester=S.teams[r.requestedBy]?.name||r.requestedBy;
+        return `<div class="card" style="border-left:3px solid var(--brand);margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:600;font-size:13px;">${tn(m.t1)} vs ${tn(m.t2)}</div>
+              <div style="font-size:11px;color:var(--muted);">${m.group} · Current: ${m.date||'unscheduled'} ${m.time||''} Court ${m.court||'?'}</div>
+              <div style="font-size:11px;color:var(--brand);margin-top:3px;">Proposed: ${r.proposedDate} ${r.proposedTime} Court ${r.proposedCourt} — by ${requester}</div>
+              ${r.reason?`<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic;">"${r.reason}"</div>`:''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button class="btn btn-primary btn-sm" onclick="approveReschedule('${m.id}')">✓ Approve</button>
+              <button class="btn btn-danger btn-sm" onclick="rejectReschedule('${m.id}')">✕ Reject</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--muted);font-size:13px;">No reschedule requests pending.</div>';
+
   document.getElementById('admin-actions').innerHTML=`
     <div class="alert alert-blue" style="margin-bottom:14px;font-size:12px;">
-      <strong>What this section shows:</strong> Matches that need your attention right now.
-      <strong>Disputed scores</strong> occur when a captain rejects the opponent's submitted score — you
-      are the final arbiter per league rules. Click "Resolve" to enter the correct score; your decision
-      is final and does not require opponent confirmation.
-      <strong>Awaiting confirmation</strong> are scores submitted by one captain but not yet confirmed
-      by the other — these resolve themselves, but you can intervene if a captain is unresponsive.
+      <strong>What this section shows:</strong> Matches needing your attention.
+      <strong>Reschedule requests</strong> are captain-submitted slot changes pending your approval.
+      <strong>Disputed scores</strong> require your arbitration as final arbiter per league rules.
+      <strong>Awaiting confirmation</strong> resolve themselves but you can intervene if a captain is unresponsive.
     </div>
+    ${rescheduleRequests.length?`<div class="card" style="margin-bottom:12px;border:1px solid var(--brand);">
+      <div style="font-weight:700;font-size:13px;color:var(--brand);margin-bottom:10px;">📅 Reschedule Requests (${rescheduleRequests.length})</div>
+      ${rescheduleCards}
+    </div>`:''}
     <div class="card" style="margin-bottom:12px;">
       <div style="font-weight:700;font-size:13px;color:var(--red);margin-bottom:10px;">⚖ Disputed Scores (${disputed.length})</div>
       ${disputeCards}
@@ -552,6 +576,27 @@ async function saveUserRole(){
     renderAdminUsers();
   } catch(err){ showToast('Failed: ' + err.message, true); }
 }
+async function approveReschedule(matchId){
+  const m=S.matches[matchId]; const r=m.rescheduleRequest;
+  if(!r){showToast('No request found',true);return;}
+  const conflict=Object.values(S.matches).find(x=>x.id!==matchId&&x.date===r.proposedDate&&x.time===r.proposedTime&&parseInt(x.court)===r.proposedCourt);
+  if(conflict){showToast(`Conflict: ${tn(conflict.t1)} vs ${tn(conflict.t2)} already booked there`,true);return;}
+  try{
+    await MatchesDB.update(matchId,{date:r.proposedDate,time:r.proposedTime,court:r.proposedCourt,rescheduleRequest:null});
+    addLog(`✓ Reschedule approved: ${tn(m.t1)} vs ${tn(m.t2)} → ${r.proposedDate} ${r.proposedTime}`,'var(--accent)');
+    showToast('Reschedule approved — slot updated');
+  }catch(err){showToast('Failed: '+err.message,true);}
+}
+async function rejectReschedule(matchId){
+  const m=S.matches[matchId];
+  if(!confirm(`Reject reschedule for ${tn(m.t1)} vs ${tn(m.t2)}?\n\nMatch stays at current slot.`)) return;
+  try{
+    await MatchesDB.update(matchId,{rescheduleRequest:null});
+    addLog(`✕ Reschedule rejected: ${tn(m.t1)} vs ${tn(m.t2)} stays at ${m.date} ${m.time}`,'var(--red)');
+    showToast('Request rejected');
+  }catch(err){showToast('Failed: '+err.message,true);}
+}
+
 async function adminDeleteUser(uid, email){
   if(!confirm(`Delete account for ${email}? This cannot be undone.`)) return;
   try {

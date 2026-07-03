@@ -10,6 +10,10 @@ let REGISTRATION_CUTOFF = '2026-07-09';
 function isRegistrationOpen(){
   return new Date().toISOString().split('T')[0] <= REGISTRATION_CUTOFF;
 }
+function isLeagueStarted(){
+  const start = S.config?.leagueStart || '2026-07-11';
+  return new Date().toISOString().split('T')[0] >= start;
+}
 
 // ════════ STATE ════════
 const S = {

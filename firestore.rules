@@ -8,12 +8,6 @@ service cloud.firestore {
     function isAdmin()     { return isSignedIn() && role() == 'admin'; }
     function isCaptain()   { return isSignedIn() && role() == 'captain'; }
 
-    // Team association is now stored in /teamMembers, not in the token claim.
-    // This function checks whether the requesting user has a membership record
-    // linking them to the given teamId for the current season.
-    // NOTE: ACTIVE_SEASON is a client constant — rules use a hardcoded value
-    // that must be updated when the season changes. Alternative: pass season
-    // in the document and compare to a Firestore config document.
     function isMemberOf(teamId) {
       return isSignedIn() && exists(
         /databases/$(database)/documents/teamMembers/$(request.auth.uid + '_2026-summer')
@@ -25,7 +19,10 @@ service cloud.firestore {
     // ── /teams ────────────────────────────────────────────────────────────────
     match /teams/{teamId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn(); // any signed-in user can register a team during open registration
+      // After registration cutoff (2026-07-09), only admins can create teams.
+      // request.time cannot be spoofed by the client.
+      allow create: if isAdmin() ||
+        (isSignedIn() && request.time < timestamp.date(2026, 7, 10));
       allow update: if isAdmin() || isMemberOf(teamId);
       allow delete: if isAdmin();
     }
@@ -61,9 +58,6 @@ service cloud.firestore {
     }
 
     // ── /config ───────────────────────────────────────────────────────────────
-    // League config readable by all signed-in users (nav brand, dates etc).
-    // Only admins can write. activeSeason can only be changed via Cloud Function
-    // (which has the in-progress match guard) — direct client writes are blocked.
     match /config/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();

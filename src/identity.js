@@ -113,10 +113,16 @@ function applyRoleGating(){
   // Any signed-in user can register a team during open registration.
   // Use S.userEmail (set by resolveIdentity) not firebase.auth().currentUser
   // which may be null when applyRoleGating runs due to async auth timing.
+  // After registration cutoff, only admins can register teams (late manual entries only)
   const canRegister = admin || (isRegistrationOpen() && !!S.userEmail);
   ['nav-register-btn','hero-register-btn'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = canRegister ? '' : 'none';
+    if (!el) return;
+    el.style.display = canRegister ? '' : 'none';
+    if (admin && !isRegistrationOpen()) {
+      el.textContent = id === 'nav-register-btn' ? '+ Add Team (Admin)' : 'Add Team (Admin Only)';
+      el.style.opacity = '0.7';
+    }
   });
   const schBtn = document.getElementById('sch-page-btn');
   if (schBtn) schBtn.style.display = admin ? '' : 'none';

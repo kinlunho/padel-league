@@ -29,10 +29,18 @@ function renderRosterPlayerRows(players){
     </div>
     <div style="margin:-4px 0 10px 44px;">${claimStatus}</div>`;
   }).join('');
-  document.getElementById('roster-add-btn').style.display=players.length>=5?'none':'';
+  const rosterLocked = isLeagueStarted() && !isAdminUser();
+  const addBtn = document.getElementById('roster-add-btn');
+  if (addBtn) addBtn.style.display = (players.length>=5 || rosterLocked) ? 'none' : '';
+  const lockNotice = document.getElementById('roster-lock-notice');
+  if (lockNotice) lockNotice.style.display = rosterLocked ? 'block' : 'none';
 }
 
 function addRosterPlayerRow(){
+  if(isLeagueStarted() && !isAdminUser()){
+    showToast('Roster additions are locked once the league starts. Contact an admin to add a player (e.g. injury replacement).',true);
+    return;
+  }
   const list=document.getElementById('roster-player-list');
   const count=list.querySelectorAll('.player-row').length;
   if(count>=5){showToast('Max 5 players',true);return;}
@@ -148,13 +156,26 @@ async function confirmReschedule(){
   if(conflict){showToast('That slot is already booked!',true);return;}
   const m=S.matches[id];
   try {
-    await MatchesDB.update(id,{date,time,court,status:'scheduled',scoreData:null,submittedBy:null});
-    addLog(`Rescheduled: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time}`,'var(--muted)');
-    closeModal('rescheduleModal');
-    showToast('Rescheduled!');
-  } catch(err){
-    showToast('Failed to reschedule: ' + err.message, true);
-  }
+    if(isAdminUser()){
+      // Admin reschedule is immediate and authoritative
+      await MatchesDB.update(id,{date,time,court,status:'scheduled',scoreData:null,submittedBy:null,rescheduleRequest:null});
+      addLog(`Admin rescheduled: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time}`,'var(--gold)');
+      closeModal('rescheduleModal');
+      showToast('Rescheduled!');
+    } else {
+      // Captain reschedule — submit request for admin approval, current slot unchanged
+      await MatchesDB.update(id,{
+        rescheduleRequest: {
+          proposedDate: date, proposedTime: time, proposedCourt: court,
+          reason: reason||'', requestedBy: S.myTeamId,
+          requestedAt: new Date().toISOString()
+        }
+      });
+      addLog(`⏳ Reschedule requested: ${tn(m.t1)} vs ${tn(m.t2)} → ${date} ${time} (pending admin approval)`,'var(--warn)');
+      closeModal('rescheduleModal');
+      showToast('Reschedule request sent — waiting for admin approval. Current slot unchanged until approved.');
+    }
+  } catch(err){ showToast('Failed to reschedule: ' + err.message, true); }
 }
 
 

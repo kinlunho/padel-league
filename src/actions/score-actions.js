@@ -186,6 +186,30 @@ async function submitScore(){
   showToast(wasConfirm?'Score confirmed!':'Score submitted — awaiting opponent confirmation');
 }
 
+// Admin edit of an already-confirmed score. Reuses dispute-resolve path (authoritative,
+// no opponent confirmation needed). Records audit entry in activity log.
+function adminEditConfirmedScore(matchId){
+  if(!isAdminUser()){ showToast('Admin access required', true); return; }
+  if(!confirm('Edit this confirmed score?\n\nThis will update standings immediately. The change will be recorded in the activity log.')) return;
+  S.editMatchId = matchId; editingKO = null; S.resolvingDispute = true;
+  const m = S.matches[matchId];
+  document.getElementById('score-modal-title').textContent = 'Edit Score — Admin Override';
+  document.getElementById('score-match-info').innerHTML =
+    `<strong>${tn(m.t1)}</strong> vs <strong>${tn(m.t2)}</strong><br>
+     <span style="color:var(--warn);">Admin edit of confirmed score — change will be logged for audit trail.</span>`;
+  ['a','b','c','g'].forEach(s=>{
+    const e1=document.getElementById('sc-lbl-t1'+s); const e2=document.getElementById('sc-lbl-t2'+s);
+    if(e1) e1.textContent=tn(m.t1); if(e2) e2.textContent=tn(m.t2);
+  });
+  if(m.scoreData){
+    const sd=m.scoreData;
+    if(sd.gamesOnly){ document.getElementById('sc-games-only').checked=true; document.getElementById('sc-g-t1').value=sd.g1; document.getElementById('sc-g-t2').value=sd.g2; }
+    else{ document.getElementById('sc-games-only').checked=false; document.getElementById('sc-s1-t1').value=sd.s1t1||6; document.getElementById('sc-s1-t2').value=sd.s1t2||3; document.getElementById('sc-s2-t1').value=sd.s2t1||4; document.getElementById('sc-s2-t2').value=sd.s2t2||6;
+      if(sd.stb&&sd.stb1!==null){ document.getElementById('sc-stb-t1').value=sd.stb1; document.getElementById('sc-stb-t2').value=sd.stb2; } }
+  }
+  toggleGamesMode(); updateScorePreview(); openModal('scoreModal');
+}
+
 async function confirmScore(id){
   const m=S.matches[id];
   if(!isAdminUser()&&S.myTeamId&&S.myTeamId===m.submittedBy){
