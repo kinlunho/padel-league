@@ -3,12 +3,32 @@
 
 // ════════ MOBILE NAV ════════
 function toggleMobileNav(){
-  document.getElementById('nav-tabs').classList.toggle('open');
+  const tabs = document.getElementById('nav-tabs');
+  const isOpen = tabs.classList.toggle('open');
+  // Inject mobile-only items when opening
+  if(isOpen){
+    let mobileExtra = document.getElementById('nav-mobile-extra');
+    if(!mobileExtra){
+      mobileExtra = document.createElement('div');
+      mobileExtra.id = 'nav-mobile-extra';
+      mobileExtra.style.cssText = 'border-top:1px solid var(--border);margin-top:6px;padding-top:6px;';
+      tabs.appendChild(mobileExtra);
+    }
+    const userEmail = document.getElementById('nav-user-email')?.textContent || '';
+    const registerVisible = document.getElementById('nav-register-btn')?.style.display !== 'none';
+    const joinVisible     = document.getElementById('nav-join-btn')?.style.display !== 'none';
+    const profileVisible  = document.getElementById('nav-profile-btn')?.style.display !== 'none';
+    mobileExtra.innerHTML = `
+      ${userEmail ? `<div style="font-size:11px;color:var(--muted);padding:8px 14px;">${userEmail}</div>` : ''}
+      ${profileVisible  ? `<button class="nav-tab" onclick="openModal('profileModal');closeMobileNav()">👤 My Profile</button>` : ''}
+      ${registerVisible ? `<button class="nav-tab" onclick="openModal('registerModal');closeMobileNav()">+ Register Team</button>` : ''}
+      ${joinVisible     ? `<button class="nav-tab" onclick="openModal('joinPlayerModal');closeMobileNav()">Join as Player</button>` : ''}
+      <button class="nav-tab" style="color:var(--red);" onclick="handleSignOut();closeMobileNav()">Sign Out</button>`;
+  }
 }
 function closeMobileNav(){
   document.getElementById('nav-tabs').classList.remove('open');
 }
-// Close mobile nav when tapping outside
 document.addEventListener('click', e => {
   const nav = document.getElementById('nav-tabs');
   const btn = document.getElementById('nav-hamburger');

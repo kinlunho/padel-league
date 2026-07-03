@@ -210,11 +210,28 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   .stat-row{gap:18px;}
   .bracket-rounds{flex-direction:column;}
 
-  /* Mobile nav — hide tabs, show hamburger */
-  .nav-tabs{ display:none; position:fixed; top:52px; left:0; right:0; background:var(--surface); border-bottom:1px solid var(--border); flex-direction:column; padding:8px; gap:2px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.4); }
+  /* Hide everything in nav except brand and hamburger */
+  .nav-user{ display:none !important; }
+  .nav-tabs .nav-action-btn{ display:flex; }
+  #nav-register-btn, #nav-join-btn, #nav-profile-btn, .nav-logout-mobile{ display:none !important; }
+
+  /* Hamburger visible */
+  .nav-hamburger{ display:flex !important; margin-left:auto; }
+
+  /* Nav tabs become fullscreen dropdown */
+  .nav-tabs{
+    display:none;
+    position:fixed;
+    top:52px; left:0; right:0;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    flex-direction:column;
+    padding:8px;
+    gap:2px;
+    z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
   .nav-tabs.open{ display:flex; }
-  .nav-tab{ padding:10px 14px; font-size:14px; border-radius:6px; }
-  .nav-hamburger{ display:flex !important; }
-  .nav-user-email{ max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
-  .nav-brand{ font-size:13px; }
+  .nav-tab{ padding:10px 14px; font-size:14px; border-radius:6px; text-align:left; }
+  .nav-user-email{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
 }
