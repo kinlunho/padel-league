@@ -100,8 +100,10 @@ function setNavUser(user){
   if (!user){ pill.style.display = 'none'; return; }
   const label = roleLabel();
   const color = label==='Admin' ? 'var(--gold)' : label==='Captain' ? 'var(--brand)' : 'var(--muted)';
+  // Show display name if set, otherwise fall back to the part before @ in the email
+  const displayName = user.displayName || (user.email ? user.email.split('@')[0] : user.email);
   document.getElementById('nav-user-email').innerHTML =
-    `${user.email} <span style="color:${color};font-weight:700;">· ${label}</span>`;
+    `${displayName} <span style="color:${color};font-weight:700;">· ${label}</span>`;
   pill.style.display = 'flex';
 }
 
@@ -251,24 +253,17 @@ if (!IS_LOCAL_DEV){
   firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
     if (firebaseUser){
       await resolveIdentity(firebaseUser);
-
-      // Start real-time Firestore listeners — they will call renderHome() automatically
-      // whenever teams or matches data changes in Firestore, keeping every user's screen
-      // live without any manual refresh.
       TeamsDB.subscribe(() => {
         renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
       });
       MatchesDB.subscribe(() => {
         renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
       });
-
       showApp();
       setNavUser(firebaseUser);
       applyRoleGating();
       renderHome();
     } else {
-      // Stop listeners on logout — prevents Firestore from throwing permission errors
-      // after the user signs out and the Security Rules no longer grant access.
       TeamsDB.stop();
       MatchesDB.stop();
       hideApp();

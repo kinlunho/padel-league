@@ -5,12 +5,14 @@
 function openModal(id){
   if(id==='scheduleModal'){ populateSchGroups(); populateDates('sch-date'); populateDates('rsch-date'); }
   if(id==='registerModal'){
-    // Block captains who already have a team from registering another
     if(S.myTeamId && !isAdminUser()){
       showToast('You already have a team registered this season — contact an admin to make changes', true);
       return;
     }
     populateRegGroup();
+    // Pre-fill captain email from the logged-in user's email
+    const emailEl = document.getElementById('reg-email');
+    if(emailEl && S.userEmail && !emailEl.value) emailEl.value = S.userEmail;
   }
   document.getElementById(id).classList.add('open');
 }
