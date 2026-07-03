@@ -48,13 +48,10 @@ service cloud.firestore {
     }
 
     // ── /teamMembers ──────────────────────────────────────────────────────────
-    // Users can read and write their own membership record.
-    // Admins can read and write all membership records.
-    // Captains cannot read or write other users' membership records.
     match /teamMembers/{docId} {
-      allow read:  if isAdmin() || request.auth.uid == resource.data.uid;
+      allow read:   if isAdmin() || (isSignedIn() && docId.matches(request.auth.uid + '_.*'));
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
-      allow update: if isAdmin() || request.auth.uid == resource.data.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       allow delete: if isAdmin();
     }
 
