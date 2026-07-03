@@ -44,4 +44,36 @@ async function confirmQuickSchedule(){
   } catch(err){ showToast('Failed to claim slot: ' + err.message, true); }
 }
 
+// Opens the quick-schedule modal when a captain clicks an empty court slot.
+// Admin gets the full free-form scheduler pre-filled with that date/time/court.
+// Captain gets a narrower picker limited to their own team's unclaimed fixtures.
+function openQuickSchedule(date,time,court){
+  if(isAdminUser()){
+    populateSchGroups();
+    openModal('scheduleModal');
+    document.getElementById('sch-date').value=date;
+    document.getElementById('sch-time').value=time;
+    document.getElementById('sch-court').value=court;
+    return;
+  }
+  if(!isCaptainUser()||!S.myTeamId){
+    showToast('No team linked to your account — contact an admin',true);
+    return;
+  }
+  const eligible=Object.values(S.matches).filter(m=>
+    m.status==='unclaimed' &&
+    (m.t1===S.myTeamId||m.t2===S.myTeamId)
+  );
+  if(!eligible.length){
+    showToast('No unplayed opponents remain for your team in this division',true);
+    return;
+  }
+  S.quickScheduleTarget={date,time,court};
+  document.getElementById('quick-fixture-select').innerHTML=eligible.map(m=>
+    `<option value="${m.id}">${tn(m.t1)} vs ${tn(m.t2)} (${m.group}, Round ${m.round})</option>`
+  ).join('');
+  document.getElementById('quick-slot-info').innerHTML=`📅 ${date} · 🕖 ${time} · Court ${court}`;
+  openModal('quickScheduleModal');
+}
+
 
