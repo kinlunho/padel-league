@@ -330,7 +330,6 @@ async function unlockSeason(){
   showToast('Season unlocked');
   renderAdminSeason();
 }
-}
 
 // ── User action helpers ───────────────────────────────────────────────────────
 function toggleNewUserTeam(){
