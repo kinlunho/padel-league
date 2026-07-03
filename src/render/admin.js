@@ -410,9 +410,27 @@ function renderAdminSeason(){
            </div>`
       }
     </div>
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-sm" onclick="generateAllFixtures()">⚙ Generate All Fixtures</button>
-      ${!locked?`<button class="btn btn-ghost btn-sm" onclick="lockSeasonNow()">🔒 Lock Season</button>`:''}
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+          <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="generateAllFixtures()">⚙ Generate All Fixtures</button>
+          <div style="font-size:11px;color:var(--muted);">
+            Creates the full round-robin match schedule for every division that doesn't have fixtures yet.
+            <strong>Only run this after registration closes (${REGISTRATION_CUTOFF})</strong> —
+            any team added after generation gets no automatic matches and must be scheduled manually.
+            Cannot be re-run for a division once done.
+          </div>
+        </div>
+        ${!locked?`<div style="display:flex;align-items:flex-start;gap:10px;">
+          <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="lockSeasonNow()">🔒 Lock Season</button>
+          <div style="font-size:11px;color:var(--muted);">
+            Prevents accidental season change once play has started. Run this after generating fixtures.
+            A locked season blocks "Start New Season" until you explicitly unlock it —
+            unlocking requires a second confirmation and is only possible from this League Setup tab.
+            ${locked?'<strong style="color:var(--red);">Currently locked.</strong> Use the Unlock button above to enable season changes.':''}
+          </div>
+        </div>`:''}
+      </div>
     </div>`;
 }
 
