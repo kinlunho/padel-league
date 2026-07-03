@@ -18,10 +18,13 @@ function renderRosterPlayerRows(players){
     const claimStatus=p.claimedByEmail
       ?`<span style="font-size:9px;color:var(--accent);">✓ linked to ${p.claimedByEmail}</span>`
       :`<span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;">code: ${p.claimCode}</span> <button type="button" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px;" onclick="regenerateRosterCode(${i})">↻ regenerate</button>`;
+    const nprpOpts=[1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0]
+      .map(v=>`<option value="${v}"${parseFloat(p.nprp)===v?' selected':''}>${v}</option>`).join('');
     return `<div class="player-row" data-pid="${p.pid}" data-code="${p.claimCode||''}" data-claimed="${p.claimedByEmail||''}">
       <span class="player-badge">P${i+1}${i===0?' ★':''}</span>
       <input class="form-input roster-name-input" value="${p.name||''}" placeholder="Player name" style="flex:1.4;">
       <input class="form-input roster-phone-input" value="${p.phone||''}" placeholder="Phone" style="flex:1;">
+      <select class="form-select roster-nprp-input" style="flex:0.6;"><option value="">NPRP</option>${nprpOpts}</select>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:6px 10px;" onclick="removeRosterPlayerRow(this)" ${players.length<=2?'disabled title="Minimum 2 players"':''}>✕</button>
     </div>
     <div style="margin:-4px 0 10px 44px;">${claimStatus}</div>`;
@@ -33,9 +36,11 @@ function addRosterPlayerRow(){
   const list=document.getElementById('roster-player-list');
   const count=list.querySelectorAll('.player-row').length;
   if(count>=5){showToast('Max 5 players',true);return;}
+  const nprpOpts=[1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0]
+    .map(v=>`<option value="${v}">${v}</option>`).join('');
   const row=document.createElement('div');row.className='player-row';
   row.dataset.pid=uid();row.dataset.code=genClaimCode();row.dataset.claimed='';
-  row.innerHTML=`<span class="player-badge">P${count+1}</span><input class="form-input roster-name-input" placeholder="Player name" style="flex:1.4;"><input class="form-input roster-phone-input" placeholder="Phone" style="flex:1;"><button type="button" class="btn btn-ghost btn-sm" style="padding:6px 10px;" onclick="removeRosterPlayerRow(this)">✕</button>`;
+  row.innerHTML=`<span class="player-badge">P${count+1}</span><input class="form-input roster-name-input" placeholder="Player name" style="flex:1.4;"><input class="form-input roster-phone-input" placeholder="Phone" style="flex:1;"><select class="form-select roster-nprp-input" style="flex:0.6;"><option value="">NPRP</option>${nprpOpts}</select><button type="button" class="btn btn-ghost btn-sm" style="padding:6px 10px;" onclick="removeRosterPlayerRow(this)">✕</button>`;
   list.appendChild(row);
   const codeNote=document.createElement('div');
   codeNote.style.cssText='margin:-4px 0 10px 44px;';
@@ -73,12 +78,14 @@ async function saveRosterEdit(){
   const newPlayers=rows.map(row=>{
     const name=row.querySelector('.roster-name-input').value.trim();
     const phone=row.querySelector('.roster-phone-input').value.trim();
+    const nprp=row.querySelector('.roster-nprp-input')?.value||null;
     const pid=row.dataset.pid;
     const existing=(t.players||[]).find(p=>p.pid===pid);
     return {
       pid,
       name,
       phone,
+      nprp: nprp||existing?.nprp||null,
       claimCode:existing?existing.claimCode:row.dataset.code,
       claimedByEmail:existing?existing.claimedByEmail:null
     };
