@@ -31,11 +31,26 @@
       <input class="form-input" id="signin-password" type="password" placeholder="Password" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')openSignIn()">
       <button class="auth-btn" onclick="openSignIn()">Sign In to League Portal</button>
       <p id="signin-error" style="color:#f87171;font-size:12px;margin-top:10px;min-height:16px;"></p>
-      <p style="font-size:11px;margin-top:4px;"><span onclick="showResetView()" style="color:var(--brand);cursor:pointer;text-decoration:underline;">Forgot password?</span></p>
-      <p class="auth-note">Access is by invitation only.<br>Your coach will email you a password when you are added to the system.</p>
+      <p style="font-size:11px;margin-top:4px;">
+        <span onclick="showResetView()" style="color:var(--brand);cursor:pointer;text-decoration:underline;">Forgot password?</span>
+        &nbsp;·&nbsp;
+        <span onclick="showSignupView()" style="color:var(--brand);cursor:pointer;text-decoration:underline;">Request access</span>
+      </p>
+      <p class="auth-note">League portal for registered teams only.</p>
     </div>
 
-    <!-- Password reset view (hidden by default) -->
+    <!-- Self-registration / request access view -->
+    <div id="auth-signup-view" style="display:none;">
+      <p style="font-size:13px;color:#c0ccda;margin-bottom:14px;">Create your account. You'll start as a viewer — your coach will link you to your team and assign your role.</p>
+      <input class="form-input" id="signup-email" type="email" placeholder="Your email address" style="margin-bottom:10px;" onkeydown="if(event.key==='Enter')selfRegister()">
+      <input class="form-input" id="signup-password" type="password" placeholder="Choose a password (min 6 chars)" style="margin-bottom:10px;" onkeydown="if(event.key==='Enter')selfRegister()">
+      <input class="form-input" id="signup-name" type="text" placeholder="Your name (so coach can identify you)" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')selfRegister()">
+      <button class="auth-btn" onclick="selfRegister()">Request Access</button>
+      <p id="signup-error" style="color:#f87171;font-size:12px;margin-top:10px;min-height:16px;"></p>
+      <p style="font-size:11px;margin-top:4px;"><span onclick="showSignInView()" style="color:var(--brand);cursor:pointer;text-decoration:underline;">← Back to sign in</span></p>
+    </div>
+
+    <!-- Password reset view -->
     <div id="auth-reset-view" style="display:none;">
       <p style="font-size:13px;color:#c0ccda;margin-bottom:14px;">Enter your email and we'll send a reset link.</p>
       <input class="form-input" id="reset-email" type="email" placeholder="Email address" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')sendResetEmail()">
@@ -659,6 +674,7 @@
 <script src="src/utils.js"></script>
 <script src="src/data/teams.js"></script>
 <script src="src/data/matches.js"></script>
+<script src="src/data/members.js"></script>
 <script src="src/data/users.js"></script>
 <script src="src/seed-data.js"></script>
 <script src="src/identity.js"></script>

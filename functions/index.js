@@ -1,128 +1,137 @@
 // functions/index.js
-// Firebase Cloud Functions — server-side Admin SDK operations that cannot run in the browser.
-// Deployed to: https://us-central1-padel-league-hk.cloudfunctions.net/
-//
-// All functions require the caller to be authenticated AND have role:'admin' in their
-// custom claims. The check happens server-side in the function itself — a client-side
-// isAdminUser() check is not sufficient because the client controls it.
+// Firebase Cloud Functions — server-side Admin SDK operations.
+// Team association now lives in /teamMembers/{uid}_{season}, not in custom claims.
+// Claims carry role only. This allows mid-season reassignment and cross-season
+// membership history without touching Auth.
 
 const functions = require('firebase-functions');
 const admin     = require('firebase-admin');
 admin.initializeApp();
-const REGION = 'asia-east2';
+const REGION       = 'asia-east2';
+const ACTIVE_SEASON = '2026-summer'; // must match src/state.js ACTIVE_SEASON
 
-// ── Helper: verify the caller is a signed-in admin ──────────────────────────
+// ── Auth helper ──────────────────────────────────────────────────────────────
 async function requireAdmin(context) {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
-  const token = await admin.auth().verifyIdToken(context.auth.token.__raw || await admin.auth().createCustomToken(context.auth.uid));
-  const user  = await admin.auth().getUser(context.auth.uid);
-  const claims = user.customClaims || {};
-  if (claims.role !== 'admin') throw new functions.https.HttpsError('permission-denied', 'Admin only.');
+  const caller = await admin.auth().getUser(context.auth.uid);
+  if ((caller.customClaims || {}).role !== 'admin')
+    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
 }
 
 // ── setUserRole ──────────────────────────────────────────────────────────────
-// Sets role + optional teamId custom claim on a Firebase Auth user.
-// Called from the admin page when promoting a viewer to captain or admin.
-// data: { uid, role: 'admin'|'captain'|'viewer', teamId: string|null }
+// Sets role custom claim. If role is 'captain', also writes a teamMembers record.
+// data: { uid, role, teamId?, teamName? }
 exports.setUserRole = functions.region(REGION).https.onCall(async (data, context) => {
-  // Verify caller token directly from context.auth
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
-  }
-  const callerRecord = await admin.auth().getUser(context.auth.uid);
-  if ((callerRecord.customClaims || {}).role !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
-  }
-
-  const { uid, role, teamId = null } = data;
+  await requireAdmin(context);
+  const { uid, role, teamId = null, teamName = null } = data;
   if (!uid || !role) throw new functions.https.HttpsError('invalid-argument', 'uid and role required.');
-  if (!['admin','captain','viewer'].includes(role)) {
-    throw new functions.https.HttpsError('invalid-argument', 'role must be admin, captain, or viewer.');
-  }
+  if (!['admin','captain','viewer'].includes(role))
+    throw new functions.https.HttpsError('invalid-argument', 'Invalid role.');
 
-  await admin.auth().setCustomUserClaims(uid, { role, teamId: teamId || null });
+  // Role goes in the claim — no teamId in claims anymore
+  await admin.auth().setCustomUserClaims(uid, { role });
 
-  // Also update the /users/{uid} Firestore doc so the admin page can list roles
-  // without needing to call Admin SDK listUsers() which has rate limits.
+  const userRecord = await admin.auth().getUser(uid);
+
+  // Update /users doc
   await admin.firestore().collection('users').doc(uid).set({
-    uid,
-    email: (await admin.auth().getUser(uid)).email,
-    role,
-    teamId: teamId || null,
+    uid, email: userRecord.email, role,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
+
+  // Write/update teamMembers record if assigning captain with a team
+  if (role === 'captain' && teamId) {
+    const docId = `${uid}_${ACTIVE_SEASON}`;
+    await admin.firestore().collection('teamMembers').doc(docId).set({
+      uid, season: ACTIVE_SEASON, teamId,
+      teamName: teamName || '',
+      role: 'captain',
+      joinedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    // Also stamp the team document with the new captain
+    await admin.firestore().collection('teams').doc(teamId).update({
+      captainUid:   uid,
+      captainEmail: userRecord.email
+    });
+  }
+
+  // If demoting from captain, remove their teamMembers record
+  if (role !== 'captain') {
+    const docId = `${uid}_${ACTIVE_SEASON}`;
+    await admin.firestore().collection('teamMembers').doc(docId).delete().catch(()=>{});
+  }
 
   return { success: true, uid, role, teamId };
 });
 
 // ── createUser ───────────────────────────────────────────────────────────────
-// Creates a new Firebase Auth user. Admin only.
-// data: { email, password, role: 'captain'|'viewer', teamId: string|null }
 exports.createUser = functions.region(REGION).https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
-  }
-  const callerRecord = await admin.auth().getUser(context.auth.uid);
-  if ((callerRecord.customClaims || {}).role !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
-  }
-
-  const { email, password, role = 'viewer', teamId = null } = data;
+  await requireAdmin(context);
+  const { email, password, role = 'viewer', teamId = null, teamName = null } = data;
   if (!email || !password) throw new functions.https.HttpsError('invalid-argument', 'email and password required.');
 
   const userRecord = await admin.auth().createUser({ email, password });
-  await admin.auth().setCustomUserClaims(userRecord.uid, { role, teamId: teamId || null });
+  await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
   await admin.firestore().collection('users').doc(userRecord.uid).set({
-    uid: userRecord.uid,
-    email,
-    role,
-    teamId: teamId || null,
+    uid: userRecord.uid, email, role, teamId: null,
     createdAt: admin.firestore.FieldValue.serverTimestamp()
   });
+
+  if (role === 'captain' && teamId) {
+    const docId = `${userRecord.uid}_${ACTIVE_SEASON}`;
+    await admin.firestore().collection('teamMembers').doc(docId).set({
+      uid: userRecord.uid, season: ACTIVE_SEASON, teamId,
+      teamName: teamName || '', role: 'captain',
+      joinedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    await admin.firestore().collection('teams').doc(teamId).update({
+      captainUid: userRecord.uid, captainEmail: email
+    }).catch(()=>{});
+  }
 
   return { success: true, uid: userRecord.uid, email, role };
 });
 
 // ── listUsers ─────────────────────────────────────────────────────────────────
-// Returns all Firebase Auth users with their current role claims.
-// Admin only. Used to populate the admin user management table.
 exports.listUsers = functions.region(REGION).https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
-  }
-  const callerRecord = await admin.auth().getUser(context.auth.uid);
-  if ((callerRecord.customClaims || {}).role !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
-  }
+  await requireAdmin(context);
 
   const listResult = await admin.auth().listUsers(1000);
-  const users = listResult.users.map(u => ({
-    uid:    u.uid,
-    email:  u.email,
-    role:   (u.customClaims || {}).role   || 'viewer',
-    teamId: (u.customClaims || {}).teamId || null,
-    lastSignIn: u.metadata.lastSignInTime
-  }));
+
+  // Fetch all teamMembers for this season to enrich the user list
+  const membersSnap = await admin.firestore().collection('teamMembers')
+    .where('season', '==', ACTIVE_SEASON).get();
+  const membersByUid = {};
+  membersSnap.docs.forEach(d => { membersByUid[d.data().uid] = d.data(); });
+
+  const users = listResult.users.map(u => {
+    const membership = membersByUid[u.uid];
+    return {
+      uid:         u.uid,
+      email:       u.email,
+      displayName: u.displayName || '',
+      role:        (u.customClaims || {}).role || 'viewer',
+      teamId:      membership ? membership.teamId   : null,
+      teamName:    membership ? membership.teamName : null,
+      lastSignIn:  u.metadata.lastSignInTime
+    };
+  });
 
   return { users };
 });
 
 // ── deleteUser ────────────────────────────────────────────────────────────────
-// Deletes a Firebase Auth user. Admin only. Cannot delete yourself.
 exports.deleteUser = functions.region(REGION).https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be signed in.');
-  }
-  const callerRecord = await admin.auth().getUser(context.auth.uid);
-  if ((callerRecord.customClaims || {}).role !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
-  }
-  if (data.uid === context.auth.uid) {
+  await requireAdmin(context);
+  if (data.uid === context.auth.uid)
     throw new functions.https.HttpsError('invalid-argument', 'Cannot delete your own account.');
-  }
 
   await admin.auth().deleteUser(data.uid);
-  await admin.firestore().collection('users').doc(data.uid).delete();
+  await admin.firestore().collection('users').doc(data.uid).delete().catch(()=>{});
+  // Remove their teamMembers record if any
+  const docId = `${data.uid}_${ACTIVE_SEASON}`;
+  await admin.firestore().collection('teamMembers').doc(docId).delete().catch(()=>{});
+
   return { success: true };
 });

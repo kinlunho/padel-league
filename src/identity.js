@@ -59,19 +59,26 @@ async function resolveIdentity(firebaseUser){
 
   S.userEmail = firebaseUser.email;
 
-  // Force-refresh token to get latest custom claims without requiring re-login
+  // Force-refresh token to get latest role claim
   const tokenResult = await firebaseUser.getIdTokenResult(true);
   const role = tokenResult.claims.role || 'viewer';
   S.isAdmin   = role === 'admin';
   S.isCaptain = role === 'captain';
 
-  // Use teamId directly from the custom claim — this is set by the createUser/setUserRole
-  // Cloud Function when a captain is assigned. Email matching was the old approach and only
-  // worked when the captain's login email happened to match team.email exactly, which is
-  // never true for real captains who have personal email addresses.
-  S.myTeamId = tokenResult.claims.teamId || null;
+  // Team association now lives in /teamMembers/{uid}_{season} in Firestore.
+  // This replaces teamId in custom claims — Firestore can be updated without
+  // touching Auth, supports reassignment mid-season, and supports different
+  // teams across seasons without any data migration.
+  const membership = await MembersDB.getForUser(firebaseUser.uid);
+  if (membership) {
+    S.myTeamId = membership.teamId;
+    // A captain who registered their own team gets a membership record immediately
+    // but may not have the 'captain' claim yet (admin hasn't promoted them).
+    // Treat them as captain locally so they can manage the team they just created.
+    if (!S.isCaptain && membership.role === 'captain') S.isCaptain = true;
+  }
 
-  // Player claim-code linking still uses email matching against roster slots
+  // Player claim-code linking — separate from captaincy, uses roster slot email
   if (S.userEmail){
     Object.values(S.teams).forEach(t => {
       (t.players || []).forEach(p => {
@@ -154,14 +161,62 @@ function handleSignOut(){ firebaseAuth.signOut(); }
 
 function showResetView(){
   document.getElementById('auth-signin-view').style.display = 'none';
+  document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-reset-view').style.display  = '';
   document.getElementById('reset-email').value = document.getElementById('signin-email').value;
   document.getElementById('reset-msg').textContent = '';
 }
 function showSignInView(){
   document.getElementById('auth-reset-view').style.display  = 'none';
+  document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-signin-view').style.display = '';
   document.getElementById('signin-error').textContent = '';
+}
+function showSignupView(){
+  document.getElementById('auth-signin-view').style.display = 'none';
+  document.getElementById('auth-reset-view').style.display  = 'none';
+  document.getElementById('auth-signup-view').style.display = '';
+  document.getElementById('signup-error').textContent = '';
+  // Pre-fill email if they already typed it on the sign-in screen
+  const existingEmail = document.getElementById('signin-email').value;
+  if(existingEmail) document.getElementById('signup-email').value = existingEmail;
+}
+
+// Self-registration: creates a Firebase Auth account with role:'viewer'.
+// The user can then see the app in read-only mode. An admin must promote them
+// to captain and link their team before they can schedule or submit scores.
+async function selfRegister(){
+  const email    = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const name     = document.getElementById('signup-name').value.trim();
+  const errEl    = document.getElementById('signup-error');
+  errEl.style.color = '#f87171';
+  errEl.textContent = '';
+
+  if(!email || !password){ errEl.textContent = 'Email and password required.'; return; }
+  if(password.length < 6){ errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  if(!name){ errEl.textContent = 'Enter your name so your coach can identify you.'; return; }
+
+  try {
+    const cred = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+    // Update display name so admin can see who requested access
+    await cred.user.updateProfile({ displayName: name });
+    // Create a viewer-role Firestore user doc so they appear in the Admin user list
+    await db.collection('users').doc(cred.user.uid).set({
+      uid: cred.user.uid,
+      email,
+      displayName: name,
+      role: 'viewer',
+      teamId: null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Auth state change fires automatically — app will load as viewer
+  } catch(err){
+    errEl.textContent =
+      err.code === 'auth/email-already-in-use' ? 'An account with this email already exists. Try signing in instead.' :
+      err.code === 'auth/invalid-email'         ? 'Invalid email address.' :
+      err.message;
+  }
 }
 function sendResetEmail(){
   const email = document.getElementById('reset-email').value.trim();
@@ -183,7 +238,10 @@ function sendResetEmail(){
 
 // ════════ DEV FLAG ════════
 // Keep this const before the if blocks so both branches can read it.
-const IS_LOCAL_DEV = location.protocol === 'file:' || location.hostname === 'localhost';
+// ════════ DEV FLAG ════════
+// PRODUCTION: set to false. For local development, change back to:
+// const IS_LOCAL_DEV = location.protocol === 'file:' || location.hostname === 'localhost';
+const IS_LOCAL_DEV = false;
 
 // ════════ PRODUCTION: Firebase Auth state listener ════════
 if (!IS_LOCAL_DEV){

@@ -183,9 +183,9 @@ async function renderAdminUsers(){
             const roleColor = u.role==='admin'?'var(--gold)':u.role==='captain'?'var(--brand)':'var(--muted)';
             const isSelf    = u.uid === firebase.auth().currentUser?.uid;
             return `<tr style="border-top:1px solid var(--border);">
-              <td style="padding:8px;">${u.email}</td>
+              <td style="padding:8px;">${u.email}${u.displayName?`<div style="font-size:10px;color:var(--muted);">${u.displayName}</div>`:''}</td>
               <td style="padding:8px;"><span style="color:${roleColor};font-weight:600;">${u.role}</span></td>
-              <td style="padding:8px;">${teamName}</td>
+              <td style="padding:8px;">${u.teamName || (u.teamId && S.teams[u.teamId] ? S.teams[u.teamId].name : '—')}</td>
               <td style="padding:8px;color:var(--muted);">${u.lastSignIn?new Date(u.lastSignIn).toLocaleDateString('en-HK'):'never'}</td>
               <td style="padding:8px;">
                 ${isSelf
@@ -260,11 +260,12 @@ async function adminCreateUser(){
   const pw     = document.getElementById('new-user-pw').value;
   const role   = document.getElementById('new-user-role').value;
   const teamId = document.getElementById('new-user-team')?.value || null;
+  const teamName = teamId && S.teams[teamId] ? S.teams[teamId].name : null;
   if(!email||!pw){ showToast('Email and password required',true); return; }
   if(role==='captain'&&!teamId){ showToast('Select a team for this captain',true); return; }
   try {
     const createUser = firebase.app().functions('asia-east2').httpsCallable('createUser');
-    await createUser({ email, password:pw, role, teamId:teamId||null });
+    await createUser({ email, password:pw, role, teamId:teamId||null, teamName });
     showToast(`Account created for ${email}`);
     renderAdminUsers();
   } catch(err){ showToast('Failed: ' + err.message, true); }
@@ -289,10 +290,11 @@ function toggleEditUserTeam(){
 async function saveUserRole(){
   const role   = document.getElementById('edit-user-role').value;
   const teamId = document.getElementById('edit-user-team')?.value || null;
+  const teamName = teamId && S.teams[teamId] ? S.teams[teamId].name : null;
   if(role==='captain'&&!teamId){ showToast('Select a team for this captain',true); return; }
   try {
     const setRole = firebase.app().functions('asia-east2').httpsCallable('setUserRole');
-    await setRole({ uid: S.editUserId, role, teamId: teamId||null });
+    await setRole({ uid: S.editUserId, role, teamId: teamId||null, teamName });
     showToast('Role updated — user must sign out and back in for the change to take effect');
     closeModal('editUserModal');
     renderAdminUsers();

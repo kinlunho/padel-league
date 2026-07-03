@@ -73,9 +73,29 @@ async function registerTeam(){
   if(!name||!email){showToast('Name and email required',true);return;}
   if(players.length<2){showToast('Minimum 2 players required',true);return;}
 
+  // Capture who is registering this team for admin matching and audit trail
+  const currentUser = firebase.auth().currentUser;
+  const captainUid   = currentUser ? currentUser.uid   : null;
+  const captainEmail = currentUser ? currentUser.email : email;
+
   const fixturesAlreadyExist=Object.values(S.matches).some(m=>m.group===group&&m.round);
   try {
-    await TeamsDB.save({name,email,group,players});
+    const teamId = await TeamsDB.save({
+      name, email, group, players,
+      captainUid,
+      captainEmail,
+      createdByUid:   captainUid,
+      createdByEmail: captainEmail
+    });
+
+    // Auto-create teamMembers record so the registering user is immediately linked
+    // as captain of this team — no admin action needed for the person who registered.
+    // Admin can still reassign captaincy later via the Admin dashboard.
+    if(captainUid && isCaptainUser()){
+      await MembersDB.set(captainUid, teamId, name, 'captain');
+      S.myTeamId = teamId; // update in-memory state immediately
+    }
+
     addLog(`${name} registered in ${group}`+(fixturesAlreadyExist?' (after fixtures generated — no auto matches)':''),'var(--accent)');
     closeModal('registerModal');
     if(fixturesAlreadyExist){
@@ -90,7 +110,6 @@ async function registerTeam(){
   document.getElementById('reg-name').value='';document.getElementById('reg-email').value='';
   document.getElementById('reg-player-fields').innerHTML=`<div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div><div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>`;
   document.getElementById('add-player-btn').style.display='';
-  // No renderHome() needed — TeamsDB.subscribe's onSnapshot fires automatically
 }
 
 async function scheduleMatch(){
