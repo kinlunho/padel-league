@@ -17,9 +17,9 @@
 //   become async reads instead, with no change needed to callers.
 
 // ════════ FIREBASE INIT ════════
-// firebaseConfig loaded from src/firebase-config.js (gitignored)
-const firebaseApp  = firebase.initializeApp(firebaseConfig);
-const firebaseAuth = firebase.auth();
+// firebase, db, and firebaseAuth are initialized in the inline <script> in index.html
+// before any other script loads — this avoids all async ordering issues.
+// Do NOT call firebase.initializeApp() or firebase.auth() here again.
 
 // ════════ UI HELPERS ════════
 function showApp(){ document.getElementById('auth-gate').classList.add('hidden'); }
@@ -172,7 +172,7 @@ function sendResetEmail(){
 
 // ════════ DEV FLAG ════════
 // Keep this const before the if blocks so both branches can read it.
-const IS_LOCAL_DEV = location.protocol === 'file:' || location.hostname === 'localhost';
+const IS_LOCAL_DEV = false;
 
 // ════════ PRODUCTION: Firebase Auth state listener ════════
 if (!IS_LOCAL_DEV){

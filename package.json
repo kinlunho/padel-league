@@ -5,5 +5,8 @@
   "scripts": {
     "dev": "npx serve . -l 3000"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "firebase-admin": "^13.10.0"
+  }
 }

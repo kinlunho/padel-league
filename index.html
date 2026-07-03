@@ -4,14 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GO PARK × The One – Padel Summer League 2026</title>
-<!-- Firebase SDKs (compat — work as classic scripts, no bundler needed) -->
+<!-- Firebase SDKs must load synchronously before everything else -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  // Initialize Firebase inline so db, firebaseAuth are available to every script below.
+  // firebaseConfig is defined here directly — src/firebase-config.js is no longer needed.
+  const firebaseConfig = {
+    apiKey: "AIzaSyBKQV5UidJ_fqVAqh_RxGvWAcuTZ7vD_rw",
+    authDomain: "padel-league-hk.firebaseapp.com",
+    projectId: "padel-league-hk",
+    storageBucket: "padel-league-hk.firebasestorage.app",
+    messagingSenderId: "932670962217",
+    appId: "1:932670962217:web:9de9122ecd816c32a3fa38"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db           = firebase.firestore();
+  const firebaseAuth = firebase.auth();
+</script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-
 <!-- AUTH GATE -->
 <div id="auth-gate">
   <div class="auth-card">
@@ -25,17 +39,17 @@
       <input class="form-input" id="signin-password" type="password" placeholder="Password" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')openSignIn()">
       <button class="auth-btn" onclick="openSignIn()">Sign In to League Portal</button>
       <p id="signin-error" style="color:#f87171;font-size:12px;margin-top:10px;min-height:16px;"></p>
-      <p style="font-size:11px;margin-top:4px;"><span onclick="showResetView()" style="color:#4383fa;cursor:pointer;text-decoration:underline;">Forgot password?</span></p>
+      <p style="font-size:11px;margin-top:4px;"><span onclick="showResetView()" style="color:var(--brand);cursor:pointer;text-decoration:underline;">Forgot password?</span></p>
       <p class="auth-note">Access is by invitation only.<br>Your coach will email you a password when you are added to the system.</p>
     </div>
 
-    <!-- Password reset view -->
+    <!-- Password reset view (hidden by default) -->
     <div id="auth-reset-view" style="display:none;">
       <p style="font-size:13px;color:#c0ccda;margin-bottom:14px;">Enter your email and we'll send a reset link.</p>
       <input class="form-input" id="reset-email" type="email" placeholder="Email address" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')sendResetEmail()">
       <button class="auth-btn" onclick="sendResetEmail()">Send Reset Link</button>
       <p id="reset-msg" style="font-size:12px;margin-top:10px;min-height:16px;"></p>
-      <p style="font-size:11px;margin-top:4px;"><span onclick="showSignInView()" style="color:#4383fa;cursor:pointer;text-decoration:underline;">← Back to sign in</span></p>
+      <p style="font-size:11px;margin-top:4px;"><span onclick="showSignInView()" style="color:var(--brand);cursor:pointer;text-decoration:underline;">← Back to sign in</span></p>
     </div>
   </div>
 </div>
@@ -604,12 +618,11 @@
 <script src="src/actions/slot-actions.js"></script>
 <script src="src/actions/roster.js"></script>
 <script src="src/utils.js"></script>
-<script src="src/firebase-config.js"></script>
 <script src="src/data/teams.js"></script>
 <script src="src/data/matches.js"></script>
 <script src="src/data/users.js"></script>
-<script src="src/identity.js"></script>
 <script src="src/seed-data.js"></script>
+<script src="src/identity.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

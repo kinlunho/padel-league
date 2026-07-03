@@ -4,8 +4,7 @@
 // All render functions that previously read S.teams directly now get called automatically
 // by the onSnapshot listener whenever Firestore data changes.
 
-const db = firebase.firestore();
-
+// db is initialized globally in index.html inline script
 const TeamsDB = {
   _unsubscribe: null,
 

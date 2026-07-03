@@ -119,7 +119,7 @@ function openReschedule(id){
   openModal('rescheduleModal');
 }
 
-function confirmReschedule(){
+async function confirmReschedule(){
   const id=S.editMatchId;
   const date=document.getElementById('rsch-date').value;
   const time=document.getElementById('rsch-time').value;

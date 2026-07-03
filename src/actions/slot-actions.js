@@ -43,6 +43,5 @@ async function confirmQuickSchedule(){
     showToast('Slot claimed!');
   } catch(err){ showToast('Failed to claim slot: ' + err.message, true); }
 }
-}
 
 

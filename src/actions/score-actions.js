@@ -134,7 +134,7 @@ function validateScore(sd){
   return true;
 }
 
-function submitScore(){
+async function submitScore(){
   const sd=buildScoreData();
   if(!validateScore(sd)) return;
   const notes=document.getElementById('sc-notes').value;
