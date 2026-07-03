@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GO PARK × The One – Padel Summer League 2026</title>
-<!-- Firebase SDKs must load synchronously before everything else -->
+<!-- Firebase SDKs — load synchronously before any local scripts -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="src/firebase-config.js"></script>
 <script>
   firebase.initializeApp(firebaseConfig);
@@ -57,6 +58,7 @@
     <button class="nav-tab" onclick="showPage('submit',this)">Submit Score</button>
     <button class="nav-tab" onclick="showPage('knockout',this)">Knockouts</button>
     <button class="nav-tab" onclick="showPage('rules',this)">Rules</button>
+    <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this)" style="display:none;">⚙ Admin</button>
   </div>
   <div class="nav-user" id="nav-user">
     <div class="nav-user-dot"></div>
@@ -142,6 +144,24 @@
   <div class="section-title">Knockout Stage</div>
   <div class="alert alert-blue" style="margin-bottom:18px;" id="knockout-status">Group stage in progress — knockout brackets will populate once standings are confirmed.</div>
   <div id="knockout-container"></div>
+</div>
+
+<!-- ══ ADMIN ══ -->
+<div class="page" id="page-admin">
+  <div class="section-title">⚙ Admin Dashboard</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:20px;">Season: <strong style="color:var(--accent);" id="admin-season-label"></strong></div>
+
+  <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">League Status</div>
+  <div id="admin-status"></div>
+
+  <div style="font-weight:700;font-size:13px;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;">Pending Actions</div>
+  <div id="admin-actions"></div>
+
+  <div style="font-weight:700;font-size:13px;color:var(--brand);text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;">User Management</div>
+  <div id="admin-users"></div>
+
+  <div style="font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 10px;">Season Configuration</div>
+  <div id="admin-season"></div>
 </div>
 
 <!-- ══ RULES ══ -->
@@ -489,6 +509,33 @@
   </div>
 </div>
 
+<!-- Edit User Modal (admin only) -->
+<div class="modal-overlay" id="editUserModal">
+  <div class="modal">
+    <div class="modal-title">Edit User Role</div>
+    <div id="edit-user-email-lbl" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-select" id="edit-user-role" onchange="toggleEditUserTeam()">
+        <option value="viewer">Viewer (read-only)</option>
+        <option value="captain">Captain (can schedule + submit scores for their team)</option>
+        <option value="admin">Admin (full access)</option>
+      </select>
+    </div>
+    <div class="form-group" id="edit-user-team-wrap" style="display:none;">
+      <label class="form-label">Linked Team</label>
+      <select class="form-select" id="edit-user-team">
+        <option value="">— select team —</option>
+      </select>
+    </div>
+    <div class="alert alert-warn" style="font-size:11px;">The user must sign out and back in before the new role takes effect.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUserRole()">Save Role</button>
+    </div>
+  </div>
+</div>
+
 <!-- Score Modal -->
 <div class="modal-overlay" id="scoreModal">
   <div class="modal">
@@ -604,6 +651,7 @@
 <script src="src/render/teams.js"></script>
 <script src="src/render/submit.js"></script>
 <script src="src/render/knockout.js"></script>
+<script src="src/render/admin.js"></script>
 <script src="src/actions/modals.js"></script>
 <script src="src/actions/score-actions.js"></script>
 <script src="src/actions/slot-actions.js"></script>

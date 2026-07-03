@@ -17,6 +17,7 @@ function renderPage(name){
   else if(name==='teams') renderTeamsPage();
   else if(name==='submit') renderSubmitPage();
   else if(name==='knockout') renderKnockoutPage();
+  else if(name==='admin') renderAdminPage();
 }
 function switchRules(sec,el){
   document.querySelectorAll('.rules-btn').forEach(b=>b.classList.remove('active'));

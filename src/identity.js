@@ -109,6 +109,16 @@ function applyRoleGating(){
   if (schBtn) schBtn.style.display = admin ? '' : 'none';
   const joinBtn = document.getElementById('nav-join-btn');
   if (joinBtn) joinBtn.style.display = !w ? '' : 'none';
+  const adminTab = document.getElementById('nav-admin-tab');
+  if (adminTab) adminTab.style.display = admin ? '' : 'none';
+  const adminLabel = document.getElementById('admin-season-label');
+  if (adminLabel) adminLabel.textContent = ACTIVE_SEASON;
+  // Populate team dropdowns in edit user modal whenever roles change
+  const editTeamSel = document.getElementById('edit-user-team');
+  if (editTeamSel && editTeamSel.options.length <= 1) {
+    editTeamSel.innerHTML = '<option value="">— select team —</option>' +
+      Object.values(S.teams).map(t=>`<option value="${t.id}">${t.name} (${t.group})</option>`).join('');
+  }
   const notice = document.getElementById('viewer-notice');
   if (notice){
     if (!w){
@@ -172,7 +182,7 @@ function sendResetEmail(){
 
 // ════════ DEV FLAG ════════
 // Keep this const before the if blocks so both branches can read it.
-const IS_LOCAL_DEV = false;
+const IS_LOCAL_DEV = location.protocol === 'file:' || location.hostname === 'localhost';
 
 // ════════ PRODUCTION: Firebase Auth state listener ════════
 if (!IS_LOCAL_DEV){
