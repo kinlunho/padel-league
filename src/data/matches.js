@@ -8,6 +8,7 @@ const MatchesDB = {
   subscribe(onDataFn) {
     if (this._unsubscribe) this._unsubscribe();
     this._unsubscribe = db.collection('matches')
+      .where('season', '==', ACTIVE_SEASON)
       .onSnapshot(snapshot => {
         S.matches = {};
         snapshot.forEach(doc => {
@@ -27,7 +28,7 @@ const MatchesDB = {
   // confirmClaimSlot(), confirmQuickSchedule()
   async save(matchData) {
     const ref = db.collection('matches').doc();
-    const doc = { ...matchData, id: ref.id, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    const doc = { ...matchData, id: ref.id, season: ACTIVE_SEASON, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
     await ref.set(doc);
     return ref.id;
   },

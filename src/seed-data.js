@@ -23,6 +23,7 @@ function seedData(){
         id,name,
         email:slug+'@theone-padel.hk',
         group:g,
+        season:ACTIVE_SEASON,
         players:[
           {pid:uid(),name:`Captain ${i*2+1}`,phone:fakePhone(),claimCode:genClaimCode(),claimedByEmail:null},
           {pid:uid(),name:`Player ${i*2+2}`,phone:fakePhone(),claimCode:genClaimCode(),claimedByEmail:null}
@@ -39,7 +40,7 @@ function seedData(){
     rounds.forEach((pairs,ri)=>{
       pairs.forEach(([t1,t2])=>{
         const id=uid();
-        S.matches[id]={id,group:g,t1,t2,date:null,time:null,court:null,round:ri+1,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
+        S.matches[id]={id,group:g,t1,t2,date:null,time:null,court:null,round:ri+1,season:ACTIVE_SEASON,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
       });
     });
   });

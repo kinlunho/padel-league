@@ -14,6 +14,7 @@ const TeamsDB = {
   subscribe(onDataFn) {
     if (this._unsubscribe) this._unsubscribe();
     this._unsubscribe = db.collection('teams')
+      .where('season', '==', ACTIVE_SEASON)
       .orderBy('group')
       .onSnapshot(snapshot => {
         // Replace S.teams entirely on every update — all existing code that reads
@@ -35,7 +36,7 @@ const TeamsDB = {
   // Save a new team — called from registerTeam()
   async save(teamData) {
     const ref = db.collection('teams').doc();
-    const doc = { ...teamData, id: ref.id, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    const doc = { ...teamData, id: ref.id, season: ACTIVE_SEASON, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
     await ref.set(doc);
     return ref.id;
   },

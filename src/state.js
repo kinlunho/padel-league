@@ -1,6 +1,12 @@
 // src/state.js
 // Global state object, ID generators, and lookup helpers used everywhere else.
 
+// ════════ SEASON ════════
+// Change this single constant to start a new season. All Firestore queries filter by it,
+// so past seasons remain readable for history without any data migration.
+// Format: YYYY-spring | YYYY-summer | YYYY-winter
+const ACTIVE_SEASON = '2026-summer';
+
 // ════════ STATE ════════
 const S = {
   teams:{}, matches:{}, activity:[],
@@ -9,12 +15,7 @@ const S = {
   knockout:{ champ:{rr:{},final:{t1:null,t2:null,scoreData:null,winner:null,loser:null}}, phoenix:{rr:{},final:{t1:null,t2:null,scoreData:null,winner:null,loser:null}} },
 };
 
-// Registration closes 2 days before the season starts (11 Jul 2026). This isn't just a policy
-// preference — fixtures are generated per-division via round-robin, and generateFixtures()
-// refuses to re-run once a group has fixtures. A team added after generation gets a roster
-// entry but literally zero matches: invisible in Standings, absent from the schedule. The
-// cutoff must land before anyone generates fixtures for it to mean anything. Adjust the date
-// below if the real cutoff differs.
+// Registration closes 2 days before the season starts (11 Jul 2026).
 const REGISTRATION_CUTOFF='2026-07-09';
 function isRegistrationOpen(){
   return new Date().toISOString().split('T')[0] <= REGISTRATION_CUTOFF;
@@ -22,9 +23,6 @@ function isRegistrationOpen(){
 
 // ════════ HELPERS ════════
 const uid=()=>Math.random().toString(36).slice(2,9);
-// Short, human-typeable code a captain hands a player to link that player's own login to a
-// specific roster slot without needing their email known in advance. Excludes visually
-// ambiguous characters (0/O, 1/I).
 function genClaimCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code='';
@@ -33,7 +31,7 @@ function genClaimCode(){
 }
 const tn=id=>S.teams[id]?S.teams[id].name:'TBD';
 const groups=()=>[...new Set(Object.values(S.teams).map(t=>t.group))].sort();
-const teamsByGroup=g=>Object.values(S.teams).filter(t=>t.group===g);
+const teamsByGroup=g=>Object.values(S.teams).filter(t=>t.group===g&&t.season===ACTIVE_SEASON);
 
 // League dates: weekends July 11 – Oct 4 2026
 function leagueDates(){
@@ -43,4 +41,3 @@ function leagueDates(){
   return dates;
 }
 const TIMES=['19:00','20:00','21:00','22:00'];
-
