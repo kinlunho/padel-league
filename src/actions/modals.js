@@ -3,18 +3,43 @@
 
 // ════════ MODALS ════════
 function openModal(id){
-  if(id==='scheduleModal'){populateSchGroups();populateDates('sch-date');populateDates('rsch-date');}
+  if(id==='scheduleModal'){ populateSchGroups(); populateDates('sch-date'); populateDates('rsch-date'); }
+  if(id==='registerModal'){
+    // Block captains who already have a team from registering another
+    if(S.myTeamId && !isAdminUser()){
+      showToast('You already have a team registered this season — contact an admin to make changes', true);
+      return;
+    }
+    populateRegGroup();
+  }
   document.getElementById(id).classList.add('open');
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 function populateSchGroups(){
-  const gs=groups();
-  const extraGroups=['Group A','Group B','Group C','Group D','Group E','Group F'];
-  const allGs=[...new Set([...gs,...extraGroups])].sort();
-  document.getElementById('sch-group').innerHTML=allGs.map(g=>`<option value="${g}">${g}</option>`).join('');
-  document.getElementById('reg-group').innerHTML=allGs.map(g=>`<option value="${g}">${g}</option>`).join('');
+  // Admin schedule modal: show all existing divisions only — no placeholder groups
+  const gs = groups();
+  const LEAGUE_DIVISIONS = ['Gold Division', 'High Silver Division', 'Low Silver Division'];
+  const allGs = gs.length ? gs : LEAGUE_DIVISIONS;
+  document.getElementById('sch-group').innerHTML = allGs.map(g=>`<option value="${g}">${g}</option>`).join('');
   updateSchTeams();
+}
+
+function populateRegGroup(){
+  const regGroupWrap   = document.getElementById('reg-group-wrap');
+  const regGroupNotice = document.getElementById('reg-group-notice');
+  if(!regGroupWrap) return;
+  if(isAdminUser()){
+    const LEAGUE_DIVISIONS = ['Gold Division', 'High Silver Division', 'Low Silver Division'];
+    const gs = groups().length ? groups() : LEAGUE_DIVISIONS;
+    document.getElementById('reg-group').innerHTML = gs.map(g=>`<option value="${g}">${g}</option>`).join('');
+    regGroupWrap.style.display   = '';
+    if(regGroupNotice) regGroupNotice.style.display = 'none';
+  } else {
+    regGroupWrap.style.display   = 'none';
+    if(regGroupNotice) regGroupNotice.style.display = '';
+    document.getElementById('reg-group').innerHTML = '<option value="Unassigned">Unassigned</option>';
+  }
 }
 function updateSchTeams(){
   const g=document.getElementById('sch-group').value;
@@ -47,12 +72,14 @@ function populateDates(targetId){
   if(el) el.innerHTML=dates.slice(0,30).map(d=>`<option value="${d}">${new Date(d+'T00:00:00').toLocaleDateString('en-HK',{weekday:'short',month:'short',day:'numeric'})}</option>`).join('');
 }
 
+const NPRP_SELECT = `<select class="form-select nprp-select" style="flex:0.6;"><option value="">NPRP</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option><option value="5.5">5.5</option><option value="6.0">6.0</option><option value="6.5">6.5</option><option value="7.0">7.0</option></select>`;
+
 function addPlayerField(){
   const cont=document.getElementById('reg-player-fields');
   const count=cont.querySelectorAll('.player-row').length;
   if(count>=5){showToast('Max 5 players',true);return;}
   const row=document.createElement('div');row.className='player-row';
-  row.innerHTML=`<span class="player-badge">P${count+1}</span><input class="form-input" placeholder="Player ${count+1} name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;">`;
+  row.innerHTML=`<span class="player-badge">P${count+1}</span><input class="form-input" placeholder="Player ${count+1} name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;">${NPRP_SELECT}`;
   cont.appendChild(row);
   if(count+1>=5) document.getElementById('add-player-btn').style.display='none';
 }
@@ -68,10 +95,12 @@ async function registerTeam(){
   const rows=document.getElementById('reg-player-fields').querySelectorAll('.player-row');
   const players=[...rows].map(row=>{
     const inputs=row.querySelectorAll('input');
-    return {pid:uid(), name:inputs[0].value.trim(), phone:inputs[1].value.trim(), claimCode:genClaimCode(), claimedByEmail:null};
+    const nprp=row.querySelector('.nprp-select')?.value||null;
+    return {pid:uid(), name:inputs[0].value.trim(), phone:inputs[1].value.trim(), nprp, claimCode:genClaimCode(), claimedByEmail:null};
   }).filter(p=>p.name);
   if(!name||!email){showToast('Name and email required',true);return;}
   if(players.length<2){showToast('Minimum 2 players required',true);return;}
+
 
   // Capture who is registering this team for admin matching and audit trail
   const currentUser = firebase.auth().currentUser;
@@ -110,7 +139,7 @@ async function registerTeam(){
     return;
   }
   document.getElementById('reg-name').value='';document.getElementById('reg-email').value='';
-  document.getElementById('reg-player-fields').innerHTML=`<div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div><div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>`;
+  document.getElementById('reg-player-fields').innerHTML=`<div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;">${NPRP_SELECT}</div><div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;">${NPRP_SELECT}</div>`;
   document.getElementById('add-player-btn').style.display='';
 }
 

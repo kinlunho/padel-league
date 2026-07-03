@@ -371,16 +371,19 @@
       <label class="form-label">Captain Email</label>
       <input class="form-input" id="reg-email" type="email" placeholder="captain@email.com">
     </div>
-    <div class="form-group">
-      <label class="form-label">Group</label>
+    <div class="form-group" id="reg-group-wrap">
+      <label class="form-label">Division <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(admin assigns)</span></label>
       <select class="form-select" id="reg-group"></select>
+    </div>
+    <div id="reg-group-notice" style="display:none;font-size:11px;color:var(--muted);margin-bottom:12px;padding:8px;background:var(--surface2);border-radius:6px;">
+      📋 Division will be assigned by the league admin after reviewing your registration.
     </div>
     <div class="form-group">
       <label class="form-label">Players <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(min 2, max 5, ages 18–65)</span></label>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Phone numbers are used for the league-wide WhatsApp broadcast group (weather updates, announcements).</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Phone numbers are used for the league-wide WhatsApp broadcast group. NPRP is your self-rated skill level from <a href="https://www.nprp.io" target="_blank" style="color:var(--brand);">playbypoint</a> (1.0 beginner → 7.0 elite) — used by admin to assign your division.</div>
       <div id="reg-player-fields">
-        <div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>
-        <div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"></div>
+        <div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"><select class="form-select nprp-select" style="flex:0.6;"><option value="">NPRP</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option><option value="5.5">5.5</option><option value="6.0">6.0</option><option value="6.5">6.5</option><option value="7.0">7.0</option></select></div>
+        <div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"><select class="form-select nprp-select" style="flex:0.6;"><option value="">NPRP</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option><option value="5.5">5.5</option><option value="6.0">6.0</option><option value="6.5">6.5</option><option value="7.0">7.0</option></select></div>
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-top:6px;" id="add-player-btn" onclick="addPlayerField()">+ Add Player</button>
     </div>
