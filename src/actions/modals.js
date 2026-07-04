@@ -17,7 +17,15 @@ function openModal(id){
   }
   document.getElementById(id).classList.add('open');
 }
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+  // Reset KO entry flag and restore hidden modal elements when score modal closes
+  if(id==='scoreModal' && S.isKOEntry){
+    S.isKOEntry=false;
+    const goBox=document.getElementById('sc-games-only');
+    if(goBox){const r=goBox.closest('div');if(r)r.style.display='';}
+  }
+}
 
 function populateSchGroups(){
   // Admin schedule modal: show all existing divisions only — no placeholder groups

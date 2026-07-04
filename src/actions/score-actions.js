@@ -120,16 +120,36 @@ function isValidSetScore(a,b){
 }
 
 function validateScore(sd){
-  if(sd.gamesOnly) return true;
+  // KO entry: games-only mode not allowed — must always produce a winner
+  if(S.isKOEntry && sd.gamesOnly){
+    showToast('Knockout matches cannot use games-only mode — enter full set scores.',true);
+    return false;
+  }
+  if(sd.gamesOnly){
+    // Group stage: draws allowed via games-only
+    if(S.isKOEntry){showToast('KO matches must have a winner',true);return false;}
+    return true;
+  }
   if(!isValidSetScore(sd.s1t1,sd.s1t2)){showToast(`Set 1 score (${sd.s1t1}–${sd.s1t2}) isn't a valid set result. Sets end 6–0 to 6–4, 7–5, or 7–6.`,true);return false;}
   if(!isValidSetScore(sd.s2t1,sd.s2t2)){showToast(`Set 2 score (${sd.s2t1}–${sd.s2t2}) isn't a valid set result. Sets end 6–0 to 6–4, 7–5, or 7–6.`,true);return false;}
   const sw1=(sd.s1t1>sd.s1t2?1:0)+(sd.s2t1>sd.s2t2?1:0);
   const sw2=(sd.s1t2>sd.s1t1?1:0)+(sd.s2t2>sd.s2t1?1:0);
   if(sw1===1&&sw2===1){
-    if(!sd.stb){showToast('Sets level 1–1: enter Super Tiebreaker or tick "time expired"',true);return false;}
+    if(!sd.stb){
+      // KO: STB is mandatory when sets are level — cannot skip
+      const msg=S.isKOEntry
+        ?'Sets level 1–1: Super Tiebreaker is required for knockout matches.'
+        :'Sets level 1–1: enter Super Tiebreaker or tick "time expired"';
+      showToast(msg,true);return false;
+    }
     if(sd.stb1===sd.stb2){showToast('STB must have a winner',true);return false;}
     if(Math.max(sd.stb1,sd.stb2)<10){showToast('STB: first to 10 points',true);return false;}
     if(Math.abs(sd.stb1-sd.stb2)<2){showToast('STB: must win by 2',true);return false;}
+  }
+  // KO: a 2-0 set win is fine. A 0-2 loss is fine. No other outcome possible — draws blocked.
+  if(S.isKOEntry&&sw1===sw2&&sw1!==1){
+    showToast('Knockout match must have a winner — check the set scores.',true);
+    return false;
   }
   return true;
 }
