@@ -17,6 +17,7 @@ const MatchesDB = {
         if (onDataFn) onDataFn();
       }, err => {
         console.error('MatchesDB.subscribe error:', err);
+        if (onDataFn) onDataFn(); // unblock app-ready even on error
       });
   },
 

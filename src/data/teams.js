@@ -26,6 +26,7 @@ const TeamsDB = {
         if (onDataFn) onDataFn();
       }, err => {
         console.error('TeamsDB.subscribe error:', err);
+        if (onDataFn) onDataFn(); // unblock app-ready even on error
       });
   },
 
