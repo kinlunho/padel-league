@@ -24,6 +24,8 @@ const S = {
   // knockout is keyed by division slug, each has champ and phoenix sub-objects
   // e.g. knockout['golddivision'] = { champ:{final:{...}}, phoenix:{final:{...}} }
   knockout: {},
+  leagueTab: 'standings',  // active sub-tab inside League page
+  koTab: 'standings',      // active sub-tab inside Knockout page
 };
 
 // ════════ HELPERS ════════

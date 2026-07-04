@@ -70,12 +70,9 @@
   </button>
   <div class="nav-tabs" id="nav-tabs">
     <button class="nav-tab active" onclick="showPage('home',this);closeMobileNav()">Home</button>
-    <button class="nav-tab" onclick="showPage('standings',this);closeMobileNav()">Standings</button>
-    <button class="nav-tab" onclick="showPage('matches',this);closeMobileNav()">Matches</button>
-    <button class="nav-tab" onclick="showPage('schedule',this);closeMobileNav()">Schedule</button>
+    <button class="nav-tab" onclick="showPage('league',this);closeMobileNav()">League</button>
+    <button class="nav-tab" onclick="showPage('knockout',this);closeMobileNav()">Knockout</button>
     <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
-    <button class="nav-tab" onclick="showPage('submit',this);closeMobileNav()">Submit Score</button>
-    <button class="nav-tab" onclick="showPage('knockout',this);closeMobileNav()">Knockouts</button>
     <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
     <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this);closeMobileNav()" style="display:none;">⚙ Admin</button>
   </div>
@@ -98,7 +95,7 @@
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button class="btn btn-primary" id="hero-register-btn" onclick="openModal('registerModal')" style="display:none;">Register Team</button>
       <button class="btn btn-ghost" onclick="showPage('rules',null)">Rules</button>
-      <button class="btn btn-ghost" onclick="showPage('schedule',null)">Schedule</button>
+      <button class="btn btn-ghost" onclick="showPage('league',null);setLeagueTab('schedule',document.querySelector('.league-tab:nth-child(3)'))">Schedule</button>
     </div>
     <div id="viewer-notice" style="display:none;font-size:11px;color:var(--muted);margin-top:12px;">👁 Viewing in read-only mode — contact your coach if you need captain access to schedule matches or submit scores.</div>
     <div class="stat-row">
@@ -116,34 +113,48 @@
   </div>
 </div>
 
-<!-- ══ STANDINGS ══ -->
-<div class="page" id="page-standings">
-  <div class="section-title">Group Stage Standings</div>
-  <div class="alert alert-blue" style="margin-bottom:16px;">Top 4 per group → <strong>Champions Knockout</strong> &nbsp;·&nbsp; 5th and below → <strong>Phoenix Cup</strong></div>
-  <div class="group-tabs" id="standings-group-tabs"></div>
-  <div class="card" style="padding:0;overflow:hidden;">
-    <table>
-      <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GW</th><th>GL</th><th>GD</th><th>Pts</th></tr></thead>
-      <tbody id="standings-body"></tbody>
-    </table>
+<!-- ══ LEAGUE ══ -->
+<div class="page" id="page-league">
+  <div class="section-title">League</div>
+  <div class="group-tabs" style="margin-bottom:0;" id="league-sub-tabs">
+    <button class="group-tab active league-tab" onclick="setLeagueTab('standings',this)">Standings</button>
+    <button class="group-tab league-tab" onclick="setLeagueTab('matches',this)">Matches</button>
+    <button class="group-tab league-tab" onclick="setLeagueTab('schedule',this)">Schedule</button>
+    <button class="group-tab league-tab" onclick="setLeagueTab('submit',this)">Submit Score</button>
   </div>
-  <div style="font-size:11px;color:var(--muted);margin-top:8px;">GW = Games Won · GL = Games Lost · GD = Game Difference · Tiebreak: H2H pts → H2H GD → Overall GD → Total GW → Coin toss</div>
-</div>
 
-<!-- ══ MATCHES ══ -->
-<div class="page" id="page-matches">
-  <div class="section-title">Group Stage Matches</div>
-  <div class="group-tabs" id="matches-group-tabs"></div>
-  <div id="matches-container" class="match-grid"></div>
-</div>
-
-<!-- ══ SCHEDULE ══ -->
-<div class="page" id="page-schedule">
-  <div class="section-title">Court Schedule
-    <button class="btn btn-primary btn-sm" id="sch-page-btn" onclick="openModal('scheduleModal')" style="margin-left:auto;display:none;">+ Schedule Match</button>
+  <!-- Standings sub-page -->
+  <div class="league-sub active" id="league-sub-standings" style="margin-top:16px;">
+    <div class="alert alert-blue" style="margin-bottom:16px;">Top 4 per group → <strong>Champions Knockout</strong> &nbsp;·&nbsp; 5th and below → <strong>Phoenix Cup</strong></div>
+    <div class="group-tabs" id="standings-group-tabs"></div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table>
+        <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GW</th><th>GL</th><th>GD</th><th>Pts</th></tr></thead>
+        <tbody id="standings-body"></tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">GW = Games Won · GL = Games Lost · GD = Game Difference · Tiebreak: H2H pts → H2H GD → Overall GD → Total GW → Coin toss</div>
   </div>
-  <div id="week-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;"></div>
-  <div class="court-wrap" id="court-schedule"></div>
+
+  <!-- Matches sub-page -->
+  <div class="league-sub" id="league-sub-matches" style="margin-top:16px;display:none;">
+    <div class="group-tabs" id="matches-group-tabs"></div>
+    <div id="matches-container" class="match-grid"></div>
+  </div>
+
+  <!-- Schedule sub-page -->
+  <div class="league-sub" id="league-sub-schedule" style="margin-top:16px;display:none;">
+    <div style="display:flex;align-items:center;margin-bottom:16px;">
+      <button class="btn btn-primary btn-sm" id="sch-page-btn" onclick="openModal('scheduleModal')" style="display:none;">+ Schedule Match</button>
+    </div>
+    <div id="week-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;"></div>
+    <div class="court-wrap" id="court-schedule"></div>
+  </div>
+
+  <!-- Submit Score sub-page -->
+  <div class="league-sub" id="league-sub-submit" style="margin-top:16px;display:none;">
+    <div id="submit-container"></div>
+  </div>
 </div>
 
 <!-- ══ TEAMS ══ -->
@@ -153,17 +164,33 @@
   <div id="teams-container" class="grid-2"></div>
 </div>
 
-<!-- ══ SUBMIT SCORE ══ -->
-<div class="page" id="page-submit">
-  <div class="section-title">Submit / Confirm Score</div>
-  <div id="submit-container"></div>
-</div>
-
 <!-- ══ KNOCKOUT ══ -->
 <div class="page" id="page-knockout">
   <div class="section-title">Knockout Stage</div>
-  <div class="alert alert-blue" style="margin-bottom:18px;" id="knockout-status">Group stage in progress — knockout brackets will populate once standings are confirmed.</div>
-  <div id="knockout-container"></div>
+
+  <!-- Admin generate bar -->
+  <div id="ko-admin-bar" style="display:none;margin-bottom:14px;">
+    <div class="card" style="background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-weight:600;font-size:13px;color:var(--gold);">⚡ Admin — Knockout Day</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Generate fixtures after group stage ends. Court count is entered at generation time.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="generateKnockoutFixtures()">Generate KO Fixtures</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub tabs -->
+  <div class="group-tabs" style="margin-bottom:0;" id="ko-sub-tabs">
+    <button class="group-tab active ko-tab" onclick="setKOTab('standings',this)">Brackets</button>
+    <button class="group-tab ko-tab" onclick="setKOTab('schedule',this)">Court Schedule</button>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div class="alert alert-blue" style="margin-bottom:18px;" id="knockout-status">Group stage in progress — knockout brackets will appear once matches are confirmed.</div>
+    <div id="knockout-container"></div>
+  </div>
 </div>
 
 <!-- ══ ADMIN ══ -->

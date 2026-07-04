@@ -46,14 +46,45 @@ function showPage(name,btn){
   renderPage(name);
 }
 function renderPage(name){
-  if(name==='home') renderHome();
-  else if(name==='standings') renderStandingsPage();
-  else if(name==='matches') renderMatchesPage();
-  else if(name==='schedule') renderSchedulePage();
-  else if(name==='teams') renderTeamsPage();
-  else if(name==='submit') renderSubmitPage();
+  if(name==='home')     renderHome();
+  else if(name==='league')   renderLeaguePage();
+  else if(name==='teams')    renderTeamsPage();
   else if(name==='knockout') renderKnockoutPage();
-  else if(name==='admin') renderAdminPage();
+  else if(name==='admin')    renderAdminPage();
+  // Legacy direct routes still work (linked from home hero buttons etc.)
+  else if(name==='standings') { showPage('league',null); setLeagueTab('standings',document.querySelector('.league-tab')); }
+  else if(name==='schedule')  { showPage('league',null); setLeagueTab('schedule', document.querySelector('.league-tab:nth-child(3)')); }
+  else if(name==='submit')    { showPage('league',null); setLeagueTab('submit',   document.querySelector('.league-tab:last-child')); }
+}
+
+// ════════ LEAGUE PAGE ════════
+function renderLeaguePage(){
+  const tab = S.leagueTab || 'standings';
+  // Ensure sub-tab UI matches state
+  document.querySelectorAll('.league-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.league-sub').forEach(s=>s.style.display='none');
+  const activeBtn = document.querySelector(`.league-tab[onclick*="${tab}"]`);
+  const activePane = document.getElementById(`league-sub-${tab}`);
+  if(activeBtn) activeBtn.classList.add('active');
+  if(activePane) activePane.style.display='';
+  // Render the active sub-page content
+  if(tab==='standings') renderStandingsPage();
+  else if(tab==='matches')  renderMatchesPage();
+  else if(tab==='schedule') renderSchedulePage();
+  else if(tab==='submit')   renderSubmitPage();
+}
+
+function setLeagueTab(tab,el){
+  S.leagueTab=tab;
+  document.querySelectorAll('.league-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.league-sub').forEach(s=>s.style.display='none');
+  if(el) el.classList.add('active');
+  const pane=document.getElementById(`league-sub-${tab}`);
+  if(pane) pane.style.display='';
+  if(tab==='standings') renderStandingsPage();
+  else if(tab==='matches')  renderMatchesPage();
+  else if(tab==='schedule') renderSchedulePage();
+  else if(tab==='submit')   renderSubmitPage();
 }
 function switchRules(sec,el){
   document.querySelectorAll('.rules-btn').forEach(b=>b.classList.remove('active'));
