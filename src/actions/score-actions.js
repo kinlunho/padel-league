@@ -139,14 +139,16 @@ async function submitScore(){
   if(!validateScore(sd)) return;
   const notes=document.getElementById('sc-notes').value;
 
-  // KO Final
+  // KO Final — editingKO is now a full pKey e.g. "golddivision_champ"
   if(editingKO){
+    if(!S.knockout[editingKO]) S.knockout[editingKO]={final:{t1:null,t2:null,scoreData:null,winner:null,loser:null}};
     const fin=S.knockout[editingKO].final;
     const r=calcResult(sd);
     fin.scoreData=sd;
     fin.winner=r.result==='win1'?fin.t1:r.result==='win2'?fin.t2:null;
     fin.loser=fin.winner===fin.t1?fin.t2:fin.t1;
-    addLog(`${editingKO==='champ'?'Champions':'Phoenix'} Final: ${tn(fin.winner)} wins!`,'var(--gold)');
+    const isChamp=editingKO.endsWith('_champ');
+    addLog(`${isChamp?'🏆 Champions':'🦅 Phoenix Cup'} Final: ${tn(fin.winner)} wins!`,'var(--gold)');
     closeModal('scoreModal');showToast('Final result recorded! 🏆');renderKnockoutPage();return;
   }
 

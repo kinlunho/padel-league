@@ -21,7 +21,9 @@ const S = {
   config: null,  // populated by ConfigDB.subscribe() — null until first snapshot
   curStandingsGroup:null, curMatchesGroup:null, curTeamsGroup:null,
   editMatchId:null, selectedDate:null,
-  knockout:{ champ:{rr:{},final:{t1:null,t2:null,scoreData:null,winner:null,loser:null}}, phoenix:{rr:{},final:{t1:null,t2:null,scoreData:null,winner:null,loser:null}} },
+  // knockout is keyed by division slug, each has champ and phoenix sub-objects
+  // e.g. knockout['golddivision'] = { champ:{final:{...}}, phoenix:{final:{...}} }
+  knockout: {},
 };
 
 // ════════ HELPERS ════════
