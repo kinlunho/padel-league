@@ -87,6 +87,17 @@
 </nav>
 
 <!-- ══ HOME ══ -->
+<!-- Loading skeleton — visible until config + data both resolve -->
+<div id="app-skeleton" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;">
+  <div style="display:flex;gap:10px;align-items:center;">
+    <div style="width:10px;height:10px;border-radius:50%;background:var(--brand);animation:pulse 1.2s ease-in-out infinite;"></div>
+    <div style="width:10px;height:10px;border-radius:50%;background:var(--brand);animation:pulse 1.2s ease-in-out 0.2s infinite;opacity:0.7;"></div>
+    <div style="width:10px;height:10px;border-radius:50%;background:var(--brand);animation:pulse 1.2s ease-in-out 0.4s infinite;opacity:0.4;"></div>
+  </div>
+  <div style="font-size:12px;color:var(--muted);">Loading league data…</div>
+</div>
+<style>@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.5}}</style>
+
 <div class="page active" id="page-home">
   <div class="hero">
     <div class="hero-org">GO PARK Sports × The One</div>
@@ -599,40 +610,6 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveUserRole()">Save Role</button>
-    </div>
-  </div>
-</div>
-
-<!-- Edit Profile Modal -->
-<div class="modal-overlay" id="profileModal">
-  <div class="modal">
-    <div class="modal-title">Edit Profile</div>
-    <div class="form-group">
-      <label class="form-label">Display Name</label>
-      <input class="form-input" id="profile-name" placeholder="Your name">
-      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Shown in the nav bar instead of your email address.</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Email</label>
-      <input class="form-input" id="profile-email" disabled style="opacity:0.5;">
-      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Email cannot be changed here — contact an admin.</div>
-    </div>
-    <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:16px;">
-      <div style="font-weight:600;font-size:12px;margin-bottom:10px;">Change Password</div>
-      <div class="form-group">
-        <label class="form-label">New Password</label>
-        <input class="form-input" id="profile-new-pw" type="password" placeholder="Min 6 characters">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Confirm New Password</label>
-        <input class="form-input" id="profile-confirm-pw" type="password" placeholder="Repeat new password">
-      </div>
-      <div style="font-size:10px;color:var(--muted);">Leave blank to keep your current password. If your session is old, you may be asked to sign in again before the change takes effect.</div>
-    </div>
-    <p id="profile-error" style="color:#f87171;font-size:12px;min-height:16px;"></p>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('profileModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProfile()">Save</button>
     </div>
   </div>
 </div>

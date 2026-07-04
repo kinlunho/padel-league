@@ -26,6 +26,8 @@ const S = {
   knockout: {},
   leagueTab: 'standings',  // active sub-tab inside League page
   koTab: 'standings',      // active sub-tab inside Knockout page
+  isKOEntry: false,         // true when admin is entering a KO score (blocks draws)
+  appReady: false,          // true only after config + first teams snapshot resolve
 };
 
 // ════════ HELPERS ════════

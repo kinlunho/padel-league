@@ -6,4 +6,4 @@ seedData();
 populateSchGroups();
 populateDates('sch-date');
 populateDates('rsch-date');
-renderHome();
+// renderHome() removed — page renders only after config + data snapshots resolve (appReady flag)

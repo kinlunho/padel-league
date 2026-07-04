@@ -351,21 +351,36 @@ if (!IS_LOCAL_DEV){
     if (firebaseUser){
       // Config loads first — it sets ACTIVE_SEASON and REGISTRATION_CUTOFF
       // which TeamsDB and MatchesDB queries depend on
+      let configReady = false, teamsReady = false;
+
+      function tryReady(){
+        if(configReady && teamsReady && !S.appReady){
+          S.appReady = true;
+          // Hide loading skeleton, show real content
+          const skel = document.getElementById('app-skeleton');
+          if(skel) skel.style.display = 'none';
+          renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+        } else if(S.appReady){
+          renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+        }
+      }
+
       ConfigDB.subscribe(() => {
         applyConfigToUI();
-        renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+        configReady = true;
+        tryReady();
       });
       await resolveIdentity(firebaseUser);
       TeamsDB.subscribe(() => {
-        renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+        teamsReady = true;
+        tryReady();
       });
       MatchesDB.subscribe(() => {
-        renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
+        tryReady();
       });
       showApp();
       setNavUser(firebaseUser);
       applyRoleGating();
-      renderHome();
     } else {
       ConfigDB.stop();
       TeamsDB.stop();
