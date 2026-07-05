@@ -236,6 +236,7 @@
     <button class="rules-btn" onclick="switchRules('schedule-r',this)">Scheduling</button>
     <button class="rules-btn" onclick="switchRules('teams-r',this)">Team Rules</button>
     <button class="rules-btn" onclick="switchRules('conduct',this)">Captain's Code</button>
+    <button class="rules-btn" onclick="switchRules('oplr',this)">OPLR Rating</button>
   </div>
 
   <div class="rules-section active" id="rules-overview">
@@ -401,6 +402,42 @@
       <p>This league is built on fair play, shared responsibility, and competitive fun. The coach's decision is final. Disputes are resolved by the numbers — games and the clock — not arguments. LET'S GO ONERS! TIME TO SMASH THIS SUMMER 🔥</p>
     </div>
   </div>
+  <div class="rules-section" id="rules-oplr">
+    <div class="rule-block">
+      <h3>📈 OnePadel League Rating (OPLR)</h3>
+      <p>OPLR is the league's internal performance rating system. It is separate from your official NPRP (National Padel Rating Program) issued by the federation — OPLR is calculated from your match results within this league only and has no effect on your external NPRP.</p>
+      <div class="hl gold"><strong>Your OPLR starts from your NPRP</strong> — so your first league rating reflects your real skill level, not an arbitrary starting point.</div>
+    </div>
+    <div class="rule-block">
+      <h3>How OPLR is Calculated</h3>
+      <ul>
+        <li><strong>Team rating</strong> = average OPLR of the two players on court (3+ player teams use the top 3 by rating).</li>
+        <li><strong>Expected outcome</strong> is calculated before each match based on the rating difference between teams.</li>
+        <li><strong>Beating a stronger team</strong> gives a large rating increase. <strong>Losing to a weaker team</strong> causes a large decrease.</li>
+        <li><strong>Margin matters</strong> — winning 6–0, 6–0 moves your rating more than winning 7–6, 7–6. Dominance is rewarded.</li>
+        <li><strong>Only players who played</strong> (confirmed via attendance) have their OPLR updated. If you sat out a match, your rating doesn't change.</li>
+      </ul>
+    </div>
+    <div class="rule-block">
+      <h3>⚡ Volatility — How Fast Your Rating Moves</h3>
+      <ul>
+        <li><strong>Matches 1–20 (Calibration)</strong> — Rating swings significantly as the system finds your true level. Expect large jumps early.</li>
+        <li><strong>Matches 21–49 (Active)</strong> — Movement halves. Ratings stabilise as match history builds.</li>
+        <li><strong>Matches 50+ (Locked)</strong> — Hard cap of ±0.20 per match regardless of result or opponent strength.</li>
+      </ul>
+      <div class="hl warn">Your Season 1 OPLR is a directional indicator, not a precise ranking. With 9–11 matches per team per season, everyone stays in the calibration phase for the first 2–3 seasons. The number of matches played is shown on your profile so you know how much to trust your current rating.</div>
+    </div>
+    <div class="rule-block">
+      <h3>📊 Where to See Your OPLR</h3>
+      <ul>
+        <li>Go to <strong>Profile → My Profile</strong> — your current OPLR, trend chart, and recent match results are shown.</li>
+        <li>OPLR updates automatically after each confirmed match — no manual action needed.</li>
+        <li>The <strong>Player Directory</strong> shows OPLR for all registered players.</li>
+      </ul>
+      <div class="hl gold">OPLR is visible to all registered users. Division assignments are made by the admin based on NPRP — OPLR is for performance tracking only and does not automatically change your division.</div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ══ MODALS ══ -->

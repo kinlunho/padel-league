@@ -119,13 +119,27 @@ async function renderMyProfile(){
       </div>
       ${(()=>{
         const oplrHist = profile.oplrHistory || [];
+        const matchCount = oplrHist.length;
+        const phase = matchCount < 21 ? 'Calibrating' : matchCount < 50 ? 'Active' : 'Locked';
+        const phaseColor = matchCount < 21 ? 'var(--warn)' : matchCount < 50 ? 'var(--brand)' : 'var(--accent)';
+        const phaseNote = matchCount < 21
+          ? `Calibrating (${matchCount}/20 matches) — rating swings are expected and normal this early.`
+          : matchCount < 50
+            ? `Active (${matchCount}/49 matches) — rating is stabilising.`
+            : `Locked (${matchCount}+ matches) — max ±0.20 per match.`;
+
+        const calibrationBadge = `<div style="font-size:10px;color:${phaseColor};margin-top:4px;">
+          ⚡ ${phaseNote}
+        </div>`;
+
         if(oplrHist.length >= 2){
-          return renderOPLRChart(oplrHist) || '';
+          return (renderOPLRChart(oplrHist) || '') + calibrationBadge;
         }
         if(oplrHist.length === 1){
-          return `<div style="color:var(--muted);font-size:12px;">One match played. Rating: ${oplrHist[0].oplr.toFixed(2)}. Trend appears after 2+ matches.</div>`;
+          return `<div style="color:var(--muted);font-size:12px;">Rating: ${oplrHist[0].oplr.toFixed(2)} after 1 match. Trend appears after 2+ matches.</div>${calibrationBadge}`;
         }
-        return `<div style="color:var(--muted);font-size:12px;font-style:italic;">No matches yet — your OPLR starts from your NPRP and updates after each confirmed match.</div>`;
+        return `<div style="color:var(--muted);font-size:12px;font-style:italic;">No matches yet — OPLR starts from your NPRP and updates after each confirmed match.</div>
+          <div style="font-size:10px;color:var(--warn);margin-top:4px;">⚡ Calibrating (0/20 matches) — early ratings swing significantly as the system finds your level.</div>`;
       })()}
     </div>
 
