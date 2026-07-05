@@ -121,8 +121,10 @@ function renderEventDetail(container){
       </div>
       ${isAdminUser()?`<div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${e.status==='open'?`<button class="btn btn-primary btn-sm" onclick="mexicanoStartEvent('${e.id}')">▶ Start Event</button>`:''}
+        ${e.status==='open'?`<button class="btn btn-ghost btn-sm" onclick="openEditEventModal('${e.id}')">✎ Edit</button>`:''}
         ${e.status==='active'&&allConfirmed?`<button class="btn btn-primary btn-sm" onclick="mexicanoNextRound('${e.id}')">Next Round →</button>`:''}
         ${e.status==='active'?`<button class="btn btn-ghost btn-sm" onclick="mexicanoEndEvent('${e.id}')">✓ End Event</button>`:''}
+        ${e.status!=='active'?`<button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}','${e.name.replace(/'/g,"\\'")}')">Delete</button>`:''}
       </div>`:''}
     </div>
 
@@ -308,6 +310,91 @@ async function createPadelEvent(){
   showToast(`${name} created — add players and start when ready`);
   S_eventDetail = await EventsDB.get(eventId);
   S.events[eventId] = S_eventDetail;
+  renderEventsPage();
+}
+
+// ── Delete event ─────────────────────────────────────────────────────────────
+
+async function deleteEvent(eventId, name){
+  if(!isAdminUser()) return;
+  if(!confirm(`Delete "${name}"?\n\nThis removes the event and all rounds permanently.`)) return;
+  try {
+    // Delete all rounds first
+    const rounds = await EventsDB.getRounds(eventId);
+    for(const r of rounds){
+      await db.collection('events').doc(eventId).collection('rounds').doc(String(r.roundNumber)).delete();
+    }
+    await db.collection('events').doc(eventId).delete();
+    delete S.events[eventId];
+    S_eventDetail = null;
+    S_eventRounds = [];
+    showToast('Event deleted');
+    renderEventsPage();
+  } catch(err){ showToast('Failed: '+err.message, true); }
+}
+
+// ── Edit event (open only — name, date, courts, rounds, score format) ─────────
+
+function openEditEventModal(eventId){
+  const e = S.events[eventId];
+  if(!e) return;
+  // Reuse create modal but pre-fill
+  document.getElementById('ev-name').value  = e.name||'';
+  document.getElementById('ev-type').value  = e.type||'mexicano';
+  document.getElementById('ev-date').value  = e.date||'';
+  document.getElementById('ev-courts').value= e.courts||2;
+  document.getElementById('ev-rounds').value= e.totalRounds||6;
+  document.getElementById('ev-score-type').value = e.scoreFormat?.type||'games';
+  document.getElementById('ev-score-val').value  = e.scoreFormat?.target||e.scoreFormat?.minutes||16;
+  // Pre-fill players
+  document.getElementById('ev-players').value = (e.players||[])
+    .map(p=>`${p.name||''},${p.email||''},${p.nprp||''}`)
+    .join('\n');
+  // Change modal title and button
+  const title = document.querySelector('#createEventModal .modal-title');
+  if(title) title.textContent = 'Edit Event';
+  const btn = document.querySelector('#createEventModal .btn-primary');
+  if(btn){ btn.textContent = 'Save Changes'; btn.setAttribute('onclick',`saveEditEvent('${eventId}')`); }
+  openModal('createEventModal');
+}
+
+async function saveEditEvent(eventId){
+  const name    = document.getElementById('ev-name')?.value.trim();
+  const type    = document.getElementById('ev-type')?.value;
+  const date    = document.getElementById('ev-date')?.value;
+  const courts  = parseInt(document.getElementById('ev-courts')?.value||'2');
+  const rounds  = parseInt(document.getElementById('ev-rounds')?.value||'6');
+  const sfType  = document.getElementById('ev-score-type')?.value;
+  const sfVal   = parseInt(document.getElementById('ev-score-val')?.value||'16');
+  if(!name){showToast('Enter event name',true);return;}
+
+  const rawPlayers = document.getElementById('ev-players')?.value||'';
+  const players = rawPlayers.split('\n').map(l=>l.trim()).filter(Boolean).map((line,i)=>{
+    const parts = line.split(',').map(s=>s.trim());
+    return {
+      uid:   S.events[eventId]?.players?.[i]?.uid || `ev_p${Date.now()}_${i}`,
+      name:  parts[0]||`Player ${i+1}`,
+      email: parts[1]||null,
+      nprp:  parseFloat(parts[2])||3.5,
+      withdrawn: false
+    };
+  });
+  if(players.length<4){showToast('Need at least 4 players',true);return;}
+  if(players.length%2!==0){showToast('Need an even number of players',true);return;}
+
+  const scoreFormat = sfType==='games'?{type:'games',target:sfVal}:sfType==='timed'?{type:'timed',minutes:sfVal}:{type:'sets',sets:2};
+
+  await EventsDB.update(eventId,{name,type,date,courts,totalRounds:rounds,players,scoreFormat});
+  S_eventDetail = await EventsDB.get(eventId);
+  S.events[eventId] = S_eventDetail;
+
+  // Restore modal to create mode
+  const title = document.querySelector('#createEventModal .modal-title');
+  if(title) title.textContent = 'Create Event';
+  const btn = document.querySelector('#createEventModal .btn-primary');
+  if(btn){ btn.textContent = 'Create Event'; btn.setAttribute('onclick','createPadelEvent()'); }
+  closeModal('createEventModal');
+  showToast('Event updated');
   renderEventsPage();
 }
 
