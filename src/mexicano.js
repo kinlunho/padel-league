@@ -160,7 +160,10 @@ async function mexicanoEnterScore(eventId, roundNumber, matchId, scoreA, scoreB)
   const standings = mexicanoCalcStandings(event, allRounds);
   const standingsMap = {};
   standings.forEach(s=>{ standingsMap[s.uid]=s; });
-  await EventsDB.update(eventId, { standings: standingsMap });
+  await EventsDB.update(eventId, {
+    standings: standingsMap,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp() // triggers parent subscription
+  });
 
   // Fire OPPR updates for both teams
   const date   = event.date || new Date().toISOString().split('T')[0];

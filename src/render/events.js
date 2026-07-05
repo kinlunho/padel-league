@@ -69,6 +69,18 @@ function renderEventsList(container){
           <div style="font-size:11px;color:var(--brand);margin-top:6px;">
             Round ${e.currentRound||0}${e.totalRounds?` / ${e.totalRounds}`:''}
           </div>
+          ${e.status==='active'&&e.standings&&Object.keys(e.standings).length?(()=>{
+            const top3 = Object.values(e.standings)
+              .filter(s=>!s.withdrawn)
+              .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
+              .slice(0,3);
+            return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+              ${top3.map((s,i)=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
+                <span>${['🥇','🥈','🥉'][i]} ${s.name}</span>
+                <span style="font-family:'Space Mono',monospace;color:var(--brand);font-weight:700;">${s.points}pts</span>
+              </div>`).join('')}
+            </div>`;
+          })():''}
         </div>`
       ).join('')}
     </div>`;
@@ -112,6 +124,11 @@ function renderEventDetail(container){
         ${e.status==='active'&&allConfirmed?`<button class="btn btn-primary btn-sm" onclick="mexicanoNextRound('${e.id}')">Next Round →</button>`:''}
         ${e.status==='active'?`<button class="btn btn-ghost btn-sm" onclick="mexicanoEndEvent('${e.id}')">✓ End Event</button>`:''}
       </div>`:''}
+    </div>
+
+    <!-- Leaderboard button -->
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="openLeaderboard('${e.id}')">📺 Full-screen Leaderboard</button>
     </div>
 
     <!-- Standings -->
@@ -292,6 +309,126 @@ async function createEvent(){
   S_eventDetail = await EventsDB.get(eventId);
   S.events[eventId] = S_eventDetail;
   renderEventsPage();
+}
+
+// ── Full-screen leaderboard ───────────────────────────────────────────────────
+// Opens a separate overlay designed for projection on a screen or TV.
+// Updates in real-time via Firestore subscription on the event doc.
+
+let _leaderboardUnsub = null;
+
+function openLeaderboard(eventId){
+  const overlay = document.createElement('div');
+  overlay.id = 'leaderboard-overlay';
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;right:0;bottom:0;
+    background:#0a0f1e;z-index:9999;
+    display:flex;flex-direction:column;
+    font-family:'Space Mono',monospace;
+    overflow:hidden;`;
+
+  document.body.appendChild(overlay);
+  renderLeaderboard(eventId, overlay);
+
+  // Real-time subscription — event doc updates trigger re-render
+  _leaderboardUnsub = db.collection('events').doc(eventId)
+    .onSnapshot(snap=>{
+      if(!snap.exists) return;
+      S.events[eventId] = { id:snap.id, ...snap.data() };
+      renderLeaderboard(eventId, overlay);
+    });
+}
+
+function closeLeaderboard(){
+  if(_leaderboardUnsub){ _leaderboardUnsub(); _leaderboardUnsub=null; }
+  document.getElementById('leaderboard-overlay')?.remove();
+}
+
+function renderLeaderboard(eventId, overlay){
+  const e = S.events[eventId];
+  if(!e){ overlay.innerHTML=''; return; }
+
+  const standings = e.standings
+    ? Object.values(e.standings)
+        .filter(s=>!s.withdrawn)
+        .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
+    : [];
+
+  const formatLabel = {mexicano:'MEXICANO',americano:'AMERICANO',king:'KING OF THE COURT'};
+  const medals = ['🥇','🥈','🥉'];
+
+  overlay.innerHTML = `
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:20px 32px;border-bottom:2px solid rgba(245,200,66,0.3);">
+      <div>
+        <div style="font-size:11px;color:rgba(245,200,66,0.7);letter-spacing:3px;margin-bottom:4px;">
+          ${formatLabel[e.type]||'EVENT'} · ROUND ${e.currentRound||0}${e.totalRounds?' OF '+e.totalRounds:''}
+        </div>
+        <div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:1px;">${e.name}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:2px;">LIVE</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:#4ade80;
+                      display:inline-block;animation:pulse 1.5s infinite;"></div>
+        </div>
+        <button onclick="closeLeaderboard()" style="background:rgba(255,255,255,0.1);border:none;
+          color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- Standings grid -->
+    <div style="flex:1;overflow-y:auto;padding:24px 32px;">
+      ${!standings.length
+        ? `<div style="text-align:center;color:rgba(255,255,255,0.3);font-size:18px;margin-top:80px;">
+             No results yet — event in progress
+           </div>`
+        : `<div style="display:grid;gap:10px;">
+            <!-- Column headers -->
+            <div style="display:grid;grid-template-columns:48px 1fr 80px 70px 70px 60px;
+                        gap:12px;padding:0 16px;font-size:10px;color:rgba(255,255,255,0.3);
+                        letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">
+              <div>#</div><div>Player</div><div style="text-align:center;">Points</div>
+              <div style="text-align:center;">GW</div><div style="text-align:center;">GL</div>
+              <div style="text-align:center;">Played</div>
+            </div>
+            ${standings.map((s,i)=>{
+              const isTop3 = i < 3;
+              const bgColor = i===0?'rgba(245,200,66,0.12)':i===1?'rgba(192,192,192,0.08)':i===2?'rgba(205,127,50,0.08)':'rgba(255,255,255,0.04)';
+              const borderColor = i===0?'rgba(245,200,66,0.4)':i===1?'rgba(192,192,192,0.2)':i===2?'rgba(205,127,50,0.2)':'transparent';
+              const rankColor = i===0?'#F5C842':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(255,255,255,0.4)';
+              return `<div style="display:grid;grid-template-columns:48px 1fr 80px 70px 70px 60px;
+                        gap:12px;align-items:center;padding:14px 16px;
+                        background:${bgColor};border:1px solid ${borderColor};
+                        border-radius:8px;transition:all 0.3s;">
+                <div style="font-size:${isTop3?'22px':'16px'};color:${rankColor};font-weight:700;">
+                  ${medals[i]||i+1}
+                </div>
+                <div>
+                  <div style="color:#fff;font-size:${isTop3?'18px':'15px'};font-weight:${isTop3?'700':'400'};
+                               letter-spacing:0.5px;">${s.name}</div>
+                  ${s.nprp?`<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">NPRP ${s.nprp}</div>`:''}
+                </div>
+                <div style="text-align:center;font-size:${isTop3?'24px':'18px'};font-weight:700;
+                             color:${rankColor};">${s.points}</div>
+                <div style="text-align:center;color:#4ade80;font-size:14px;">${s.gamesWon}</div>
+                <div style="text-align:center;color:#f87171;font-size:14px;">${s.gamesLost}</div>
+                <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:13px;">${s.played}</div>
+              </div>`;
+            }).join('')}
+          </div>`
+      }
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:12px 32px;border-top:1px solid rgba(255,255,255,0.08);
+                display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:11px;color:rgba(255,255,255,0.3);">GO PARK Sports × The One · ${e.date||''}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.3);">padel-league-hk.web.app</div>
+    </div>
+
+    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}</style>`;
 }
 
 function setKOTab(tab,el){
