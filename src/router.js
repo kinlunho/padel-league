@@ -51,6 +51,7 @@ function renderPage(name){
   else if(name==='teams')    renderTeamsPage();
   else if(name==='knockout') renderKnockoutPage();
   else if(name==='admin')    renderAdminPage();
+  else if(name==='profile')  renderProfilePage();
   // Legacy direct routes still work (linked from home hero buttons etc.)
   else if(name==='standings') { showPage('league',null); setLeagueTab('standings',document.querySelector('.league-tab')); }
   else if(name==='schedule')  { showPage('league',null); setLeagueTab('schedule', document.querySelector('.league-tab:nth-child(3)')); }

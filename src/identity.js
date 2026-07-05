@@ -131,6 +131,10 @@ function applyRoleGating(){
       el.style.opacity = '0.7';
     }
   });
+  // Profile tab visible to all signed-in users
+  const profileTab = document.getElementById('nav-profile-tab');
+  if(profileTab) profileTab.style.display = S.userEmail ? '' : 'none';
+
   const schBtn = document.getElementById('sch-page-btn');
   if (schBtn) schBtn.style.display = admin ? '' : 'none';
   const joinBtn = document.getElementById('nav-join-btn');

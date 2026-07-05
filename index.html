@@ -9,11 +9,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="src/firebase-config.js"></script>
 <script>
   firebase.initializeApp(firebaseConfig);
   const db           = firebase.firestore();
   const firebaseAuth = firebase.auth();
+  const storage = firebase.storage();
 </script>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="css/styles.css">
@@ -73,6 +75,7 @@
     <button class="nav-tab" onclick="showPage('league',this);closeMobileNav()">League</button>
     <button class="nav-tab" onclick="showPage('knockout',this);closeMobileNav()">Knockout</button>
     <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
+    <button class="nav-tab" id="nav-profile-tab" onclick="showPage('profile',this);closeMobileNav()" style="display:none;">Profile</button>
     <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
     <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this);closeMobileNav()" style="display:none;">⚙ Admin</button>
   </div>
@@ -166,6 +169,16 @@
   <div class="league-sub" id="league-sub-submit" style="margin-top:16px;display:none;">
     <div id="submit-container"></div>
   </div>
+</div>
+
+<!-- ══ PROFILE ══ -->
+<div class="page" id="page-profile">
+  <div class="section-title">Player Profiles</div>
+  <div class="group-tabs" id="profile-sub-tabs">
+    <button class="group-tab active profile-tab" onclick="setProfileTab('mine',this)">My Profile</button>
+    <button class="group-tab profile-tab" onclick="setProfileTab('directory',this)">Player Directory</button>
+  </div>
+  <div id="profile-content" style="margin-top:16px;"></div>
 </div>
 
 <!-- ══ TEAMS ══ -->
@@ -740,6 +753,8 @@
 <script src="src/data/matches.js"></script>
 <script src="src/data/members.js"></script>
 <script src="src/data/config.js"></script>
+  <script src="src/data/players.js"></script>
+  <script src="src/render/profile.js"></script>
   <script src="src/data/players.js"></script>
 <script src="src/data/users.js"></script>
 <script src="src/seed-data.js"></script>
