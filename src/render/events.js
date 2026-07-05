@@ -177,10 +177,24 @@ function renderEventDetail(container){
             ?`<div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);">${m.scoreA} – ${m.scoreB}</div>`
             :isAdminUser()
               ?`<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-                  <input type="number" min="0" id="sA_${m.matchId}" placeholder="0" style="width:50px;padding:4px;border-radius:4px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:14px;">
-                  <span style="color:var(--muted);">–</span>
-                  <input type="number" min="0" id="sB_${m.matchId}" placeholder="0" style="width:50px;padding:4px;border-radius:4px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:14px;">
-                  <button class="btn btn-primary btn-sm" onclick="submitMexicanoScore('${e.id}',${activeRound.roundNumber},'${m.matchId}')">✓</button>
+                  ${(()=>{
+                    const target = e.scoreFormat?.target;
+                    const autoFill = target ? `oninput="autoFillScore('${m.matchId}',${target},this,'A')"` : '';
+                    const autoFillB = target ? `oninput="autoFillScore('${m.matchId}',${target},this,'B')"` : '';
+                    return `<div style="display:flex;flex-direction:column;gap:4px;">
+                      ${target?`<div style="font-size:9px;color:var(--muted);text-align:center;">of ${target}</div>`:''}
+                      <div style="display:flex;align-items:center;gap:6px;">
+                        <input type="number" min="0" max="${target||999}" id="sA_${m.matchId}" placeholder="0"
+                          style="width:52px;padding:6px;border-radius:4px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:16px;font-weight:700;"
+                          ${autoFill}>
+                        <span style="color:var(--muted);font-weight:700;">–</span>
+                        <input type="number" min="0" max="${target||999}" id="sB_${m.matchId}" placeholder="0"
+                          style="width:52px;padding:6px;border-radius:4px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:16px;font-weight:700;"
+                          ${autoFillB}>
+                        <button class="btn btn-primary btn-sm" onclick="submitMexicanoScore('${e.id}',${activeRound.roundNumber},'${m.matchId}')">✓</button>
+                      </div>
+                    </div>`;
+                  })()}
                 </div>`
               :`<div style="font-size:11px;color:var(--muted);">Pending</div>`
           }
@@ -207,11 +221,21 @@ function renderEventDetail(container){
 
 // ── Score submit helper ───────────────────────────────────────────────────────
 
+function autoFillScore(matchId, target, inputEl, side){
+  const val = parseInt(inputEl.value);
+  if(isNaN(val)||val<0) return;
+  const clamped = Math.min(val, target);
+  inputEl.value = clamped;
+  const complement = target - clamped;
+  const otherId = side==='A' ? `sB_${matchId}` : `sA_${matchId}`;
+  const otherEl = document.getElementById(otherId);
+  if(otherEl) otherEl.value = complement;
+}
+
 async function submitMexicanoScore(eventId, roundNumber, matchId){
   const scoreA = parseInt(document.getElementById(`sA_${matchId}`)?.value);
   const scoreB = parseInt(document.getElementById(`sB_${matchId}`)?.value);
   if(isNaN(scoreA)||isNaN(scoreB)){showToast('Enter both scores',true);return;}
-  if(scoreA===scoreB){showToast('Mexicano must have a winner — no draws',true);return;}
   await mexicanoEnterScore(eventId, roundNumber, matchId, scoreA, scoreB);
   // Reload rounds
   S_eventRounds = await EventsDB.getRounds(eventId);
