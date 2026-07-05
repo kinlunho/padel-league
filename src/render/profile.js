@@ -275,37 +275,65 @@ async function renderPlayerDirectory(){
 function renderDirectoryCards(players){
   if(!players.length) return '<div style="color:var(--muted);font-size:13px;">No results.</div>';
 
-  return `<div class="grid-2">
-    ${players.map(p => {
-      // Find their team from teamMembers
-      const team = Object.values(S.teams).find(t =>
-        t.season===ACTIVE_SEASON && t.players?.some(pl=>pl.claimedByEmail===p.email)
-      );
-      const playerRecord = team?.players?.find(pl=>pl.claimedByEmail===p.email);
-      const nprp = playerRecord?.nprp || null;
-      const hand = p.hand ? (p.hand==='right'?'Right hand':'Left hand') : null;
-      const pos  = p.position ? `${p.position.charAt(0).toUpperCase()+p.position.slice(1)} side` : null;
+  // Enrich each player with their team reference
+  const enriched = players.map(p => {
+    const team = Object.values(S.teams).find(t =>
+      t.season===ACTIVE_SEASON && t.players?.some(pl=>pl.claimedByEmail===p.email)
+    );
+    const playerRecord = team?.players?.find(pl=>pl.claimedByEmail===p.email);
+    return { ...p, team, nprp: playerRecord?.nprp||null };
+  });
 
-      return `<div class="card" style="cursor:pointer;" onclick="viewPlayerProfile('${p.uid}')">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--surface-1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            ${p.photoURL
-              ? `<img src="${p.photoURL}" style="width:100%;height:100%;object-fit:cover;">`
-              : `<span style="font-size:18px;">👤</span>`}
-          </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.displayName||p.email}</div>
-            ${team?`<div style="font-size:11px;color:var(--muted);">${team.name} · ${team.group}</div>`:'<div style="font-size:11px;color:var(--muted);">No team</div>'}
-            <div style="display:flex;gap:8px;margin-top:3px;flex-wrap:wrap;">
-              ${nprp?`<span style="font-size:10px;color:var(--brand);font-weight:600;">NPRP ${nprp}</span>`:''}
-              ${hand?`<span style="font-size:10px;color:var(--muted);">${hand}</span>`:''}
-              ${pos ?`<span style="font-size:10px;color:var(--muted);">${pos}</span>` :''}
+  // Group by division — ordered by getDivisions() + Unassigned at end
+  const divOrder = [...getDivisions(), 'Unassigned', 'No team'];
+  const byDiv = {};
+  divOrder.forEach(d => byDiv[d] = []);
+
+  enriched.forEach(p => {
+    const key = p.team ? p.team.group : 'No team';
+    if(!byDiv[key]) byDiv[key] = [];
+    byDiv[key].push(p);
+  });
+
+  return divOrder
+    .filter(div => byDiv[div]?.length)
+    .map(div => {
+      const divPlayers = byDiv[div];
+      const cards = divPlayers.map(p => {
+        const hand = p.hand ? (p.hand==='right'?'Right hand':'Left hand') : null;
+        const pos  = p.position ? `${p.position.charAt(0).toUpperCase()+p.position.slice(1)} side` : null;
+        return `<div class="card" style="cursor:pointer;" onclick="viewPlayerProfile('${p.uid}')">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--surface-1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${p.photoURL
+                ? `<img src="${p.photoURL}" style="width:100%;height:100%;object-fit:cover;">`
+                : `<span style="font-size:18px;">👤</span>`}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.displayName||p.email}</div>
+              ${p.team
+                ? `<div style="font-size:11px;color:var(--muted);">${p.team.name}</div>`
+                : '<div style="font-size:11px;color:var(--muted);">No team</div>'}
+              <div style="display:flex;gap:8px;margin-top:3px;flex-wrap:wrap;">
+                ${p.nprp?`<span style="font-size:10px;color:var(--brand);font-weight:600;">NPRP ${p.nprp}</span>`:''}
+                ${hand?`<span style="font-size:10px;color:var(--muted);">${hand}</span>`:''}
+                ${pos ?`<span style="font-size:10px;color:var(--muted);">${pos}</span>` :''}
+              </div>
             </div>
           </div>
+        </div>`;
+      }).join('');
+
+      const divColor = div==='Gold Division'?'var(--gold)':div==='No team'?'var(--muted)':'var(--brand)';
+      return `<div style="margin-bottom:24px;">
+        <div style="font-size:12px;font-weight:700;color:${divColor};text-transform:uppercase;
+                    letter-spacing:0.5px;margin-bottom:10px;padding-bottom:6px;
+                    border-bottom:1px solid var(--border);">
+          ${div} <span style="font-weight:400;color:var(--muted);">(${divPlayers.length})</span>
         </div>
+        <div class="grid-2">${cards}</div>
       </div>`;
-    }).join('')}
-  </div>`;
+    }).join('');
 }
 
 function filterDirectory(){
