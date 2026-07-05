@@ -39,24 +39,28 @@ exports.setUserRole = functions.region(REGION).https.onCall(async (data, context
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
 
-  // Write/update teamMembers record if assigning captain with a team
-  if (role === 'captain' && teamId) {
+  // Write teamMembers record for any role when a teamId is provided
+  // Captains get full team linking + team doc stamped
+  // Viewers/admins get team link for profile stats only (read-only stays enforced by rules)
+  if (teamId) {
     const docId = `${uid}_${ACTIVE_SEASON}`;
     await admin.firestore().collection('teamMembers').doc(docId).set({
       uid, season: ACTIVE_SEASON, teamId,
       teamName: teamName || '',
-      role: 'captain',
+      role: role,
       joinedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
-    // Also stamp the team document with the new captain
-    await admin.firestore().collection('teams').doc(teamId).update({
-      captainUid:   uid,
-      captainEmail: userRecord.email
-    });
+    if (role === 'captain') {
+      // Only stamp team doc for captains
+      await admin.firestore().collection('teams').doc(teamId).update({
+        captainUid:   uid,
+        captainEmail: userRecord.email
+      });
+    }
   }
 
-  // If demoting from captain, remove their teamMembers record
-  if (role !== 'captain') {
+  // Remove teamMembers record only when no team assigned and was previously captain
+  if (!teamId && role !== 'captain') {
     const docId = `${uid}_${ACTIVE_SEASON}`;
     await admin.firestore().collection('teamMembers').doc(docId).delete().catch(()=>{});
   }

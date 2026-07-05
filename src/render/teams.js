@@ -185,7 +185,7 @@ function renderTeamsList(group){
     const needsDivision = isAdminUser() && t.group === 'Unassigned';
     const avg = teamSeedAvg(t);
     const suggested = suggestedDivision(avg);
-    const mismatch = suggested && t.group !== 'Unassigned' && t.group !== suggested;
+    const mismatch = isAdminUser() && suggested && t.group !== 'Unassigned' && t.group !== suggested;
     return `<div class="card" style="border-left:3px solid ${needsDivision?'var(--warn)':mismatch?'var(--red)':'var(--accent)'}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
         <div>
