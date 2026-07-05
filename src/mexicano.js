@@ -235,3 +235,159 @@ async function mexicanoWithdrawPlayer(eventId, uid){
   showToast('Player withdrawn — future rounds will skip them');
   renderEventsPage();
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AMERICANO ENGINE
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Two variants:
+//   'roundrobin' — every player partners with every other player exactly once.
+//                  Generates N-1 rounds for N players. Fixed upfront.
+//   'fixed'      — traditional predefined rotation table. Same as round-robin
+//                  mathematically but presented as a social fixed schedule.
+//
+// Both variants pre-generate ALL rounds at event start (unlike Mexicano which
+// generates one round at a time based on standings).
+//
+// Scoring: games to X with auto-complement (same as Mexicano).
+// Standings: cumulative individual points = games won (same as Mexicano).
+// Bye pair: if players % 4 !== 0, last pair in each round sits out (rotating).
+
+// ── Round-robin schedule generator ───────────────────────────────────────────
+// Uses the "circle method" (polygon algorithm) — standard mathematical
+// round-robin tournament scheduling. Guarantees every player partners with
+// every other player exactly once over N-1 rounds.
+//
+// For 8 players, generates 7 rounds × 2 matches each.
+// For 6 players, generates 5 rounds × 1 match + 1 bye pair each.
+
+function americanoGenerateSchedule(players){
+  const n = players.length;
+  if(n < 4) return [];
+
+  // Circle method: fix player[0], rotate the rest
+  const ids = players.map(p => p.uid);
+  const fixed = ids[0];
+  const rotating = ids.slice(1);
+  const totalRounds = rotating.length; // N-1 rounds
+
+  const allRounds = [];
+
+  for(let r = 0; r < totalRounds; r++){
+    // Current rotation: fixed + rotating[r], rotating[r+1..], rotating[0..r-1]
+    const circle = [fixed, ...rotating.slice(r), ...rotating.slice(0, r)];
+    // Pair players: circle[0] with circle[n-1], circle[1] with circle[n-2] etc.
+    // These pairs are PARTNERS (same team)
+    const pairs = [];
+    for(let i = 0; i < Math.floor(circle.length / 2); i++){
+      pairs.push([circle[i], circle[circle.length - 1 - i]]);
+    }
+
+    // Match pairs against each other: pair[0] vs pair[1], pair[2] vs pair[3] etc.
+    const matches = [];
+    let byePair = null;
+    let activePairs = [...pairs];
+
+    // If odd number of pairs (happens when players % 4 !== 0 after pairing),
+    // rotate bye pair
+    if(activePairs.length % 2 !== 0){
+      byePair = activePairs.splice(activePairs.length - 1, 1)[0];
+    }
+
+    for(let m = 0; m < activePairs.length; m += 2){
+      if(m + 1 >= activePairs.length) break;
+      const teamA = activePairs[m];
+      const teamB = activePairs[m + 1];
+      const getPlayer = uid => players.find(p => p.uid === uid);
+      matches.push({
+        matchId:    `r${r+1}_m${Math.floor(m/2)+1}`,
+        roundNumber: r + 1,
+        court:      Math.floor(m/2) + 1,
+        teamA,
+        teamB,
+        teamANames: teamA.map(uid => getPlayer(uid)?.name||uid).join(' & '),
+        teamBNames: teamB.map(uid => getPlayer(uid)?.name||uid).join(' & '),
+        scoreA:     null,
+        scoreB:     null,
+        status:     'pending'
+      });
+    }
+
+    if(byePair){
+      const getPlayer = uid => players.find(p => p.uid === uid);
+      matches.push({
+        matchId:    `r${r+1}_bye`,
+        roundNumber: r + 1,
+        isBye:      true,
+        byeUids:    byePair,
+        byeNames:   byePair.map(uid => getPlayer(uid)?.name||uid).join(' & ')
+      });
+    }
+
+    allRounds.push({ roundNumber: r+1, matches, generatedAt: new Date().toISOString() });
+  }
+
+  return allRounds;
+}
+
+// ── Start Americano event ─────────────────────────────────────────────────────
+// Generates ALL rounds upfront and saves them to Firestore.
+
+async function americanoStartEvent(eventId){
+  if(!isAdminUser()){ showToast('Admin only', true); return; }
+  const e = S.events[eventId];
+  if(!e) return;
+  if((e.players||[]).length < 4){ showToast('Need at least 4 players', true); return; }
+
+  const players = e.players.filter(p => !p.withdrawn);
+  const schedule = americanoGenerateSchedule(players);
+
+  if(!schedule.length){ showToast('Could not generate schedule', true); return; }
+
+  // Respect totalRounds cap if set
+  const cappedSchedule = e.totalRounds
+    ? schedule.slice(0, e.totalRounds)
+    : schedule;
+
+  // Save all rounds to Firestore
+  for(const round of cappedSchedule){
+    await EventsDB.saveRound(eventId, round.roundNumber, round);
+  }
+
+  await EventsDB.update(eventId, {
+    status: 'active',
+    currentRound: 1,
+    totalRounds: cappedSchedule.length,
+    scheduleGenerated: true
+  });
+
+  showToast(`Americano started — ${cappedSchedule.length} rounds generated`);
+  S_eventDetail = await EventsDB.get(eventId);
+  S.events[eventId] = S_eventDetail;
+  S_eventRounds = await EventsDB.getRounds(eventId);
+  renderEventsPage();
+}
+
+// ── Americano standings (same formula as Mexicano) ────────────────────────────
+// Individual points = games won. Sorted by points desc, then games won.
+
+const americanoCalcStandings = mexicanoCalcStandings; // identical formula
+
+// ── Americano next round ──────────────────────────────────────────────────────
+// Unlike Mexicano, rounds are pre-generated. Just advance the round counter.
+
+async function americanoNextRound(eventId){
+  const e = S.events[eventId];
+  if(!e || !isAdminUser()) return;
+  const nextRound = (e.currentRound||0) + 1;
+  if(nextRound > (e.totalRounds||0)){
+    showToast('All rounds complete — end the event', true);
+    return;
+  }
+  await EventsDB.update(eventId, { currentRound: nextRound });
+  showToast(`Round ${nextRound}`);
+  S_eventDetail = await EventsDB.get(eventId);
+  S.events[eventId] = S_eventDetail;
+  S_eventRounds = await EventsDB.getRounds(eventId);
+  renderEventsPage();
+}

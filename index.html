@@ -460,10 +460,17 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="form-group">
         <label class="form-label">Type</label>
-        <select class="form-select" id="ev-type">
+        <select class="form-select" id="ev-type" onchange="toggleAmericanoVariant()">
           <option value="mexicano">Mexicano</option>
           <option value="americano">Americano</option>
           <option value="king">King of the Court</option>
+        </select>
+      </div>
+      <div class="form-group" id="ev-variant-wrap" style="display:none;">
+        <label class="form-label">Americano Variant</label>
+        <select class="form-select" id="ev-variant">
+          <option value="roundrobin">Round Robin (everyone partners everyone)</option>
+          <option value="fixed">Fixed Rotation (social, predefined schedule)</option>
         </select>
       </div>
       <div class="form-group">

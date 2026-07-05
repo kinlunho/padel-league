@@ -120,9 +120,9 @@ function renderEventDetail(container){
         <div style="font-size:12px;color:var(--muted);">${formatLabel[e.type]||e.type} · ${e.date||'TBC'} · ${(e.players||[]).length} players · ${e.courts||1} court${e.courts!==1?'s':''}</div>
       </div>
       ${isAdminUser()?`<div style="display:flex;gap:8px;flex-wrap:wrap;">
-        ${e.status==='open'?`<button class="btn btn-primary btn-sm" onclick="mexicanoStartEvent('${e.id}')">▶ Start Event</button>`:''}
+        ${e.status==='open'?`<button class="btn btn-primary btn-sm" onclick="startEvent('${e.id}')">▶ Start Event</button>`:''}
         ${e.status==='open'?`<button class="btn btn-ghost btn-sm" onclick="openEditEventModal('${e.id}')">✎ Edit</button>`:''}
-        ${e.status==='active'&&allConfirmed?`<button class="btn btn-primary btn-sm" onclick="mexicanoNextRound('${e.id}')">Next Round →</button>`:''}
+        ${e.status==='active'&&allConfirmed?`<button class="btn btn-primary btn-sm" onclick="advanceRound('${e.id}')">Next Round →</button>`:''}
         ${e.status==='active'?`<button class="btn btn-ghost btn-sm" onclick="mexicanoEndEvent('${e.id}')">✓ End Event</button>`:''}
         ${e.status!=='active'?`<button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}','${e.name.replace(/'/g,"\\'")}')">Delete</button>`:''}
       </div>`:''}
@@ -244,6 +244,22 @@ async function submitMexicanoScore(eventId, roundNumber, matchId){
 }
 
 // ── Admin event controls ──────────────────────────────────────────────────────
+
+// ── Format dispatchers ───────────────────────────────────────────────────────
+
+async function startEvent(eventId){
+  const e = S.events[eventId];
+  if(!e) return;
+  if(e.type === 'americano') return americanoStartEvent(eventId);
+  return mexicanoStartEvent(eventId); // mexicano + king (future)
+}
+
+async function advanceRound(eventId){
+  const e = S.events[eventId];
+  if(!e) return;
+  if(e.type === 'americano') return americanoNextRound(eventId);
+  return mexicanoNextRound(eventId);
+}
 
 async function mexicanoStartEvent(eventId){
   const e = S.events[eventId];
@@ -412,6 +428,12 @@ function addManualEventPlayer(){
   renderSelectedEventPlayers();
 }
 
+function toggleAmericanoVariant(){
+  const type = document.getElementById('ev-type')?.value;
+  const wrap = document.getElementById('ev-variant-wrap');
+  if(wrap) wrap.style.display = type==='americano' ? '' : 'none';
+}
+
 function openCreateEventModal(){
   _evSelectedPlayers = [];
   renderSelectedEventPlayers();
@@ -440,10 +462,11 @@ async function createPadelEvent(){
     : sfType==='timed'
       ? {type:'timed',minutes:sfVal}
       : {type:'sets',sets:2};
+  const variant = document.getElementById('ev-variant')?.value||'roundrobin';
 
   const eventId = await EventsDB.create({
     name, type, date, courts, totalRounds:rounds,
-    players, scoreFormat, season: ACTIVE_SEASON
+    players, scoreFormat, variant, season: ACTIVE_SEASON
   });
 
   closeModal('createEventModal');
