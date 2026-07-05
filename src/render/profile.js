@@ -82,7 +82,7 @@ async function renderMyProfile(){
         <div style="font-size:20px;font-weight:700;margin-bottom:4px;">${firebase.auth().currentUser?.displayName||S.userEmail}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${S.userEmail}</div>
         ${team ? `<div style="font-size:12px;margin-bottom:4px;">🏸 <strong>${team.name}</strong> · ${team.group}</div>` : ''}
-        ${currentNPRP ? `<div style="font-size:13px;color:var(--brand);font-weight:600;margin-bottom:8px;">OPLR ${currentNPRP}</div>` : ''}
+        ${currentNPRP ? `<div style="font-size:13px;color:var(--brand);font-weight:600;margin-bottom:8px;">OPPR ${currentNPRP}</div>` : ''}
 
         <!-- Hand + Position -->
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
@@ -110,7 +110,7 @@ async function renderMyProfile(){
     <!-- OPLR -->
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div style="font-weight:700;font-size:13px;">📈 OnePadel League Rating</div>
+        <div style="font-weight:700;font-size:13px;">📈 OnePadel Player Rating</div>
         ${profile.currentOPLR
           ? `<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--brand);">${profile.currentOPLR.toFixed(2)}</div>`
           : currentNPRP
@@ -227,7 +227,7 @@ function renderNPRPChart(history){
     <polyline points="${points}" fill="none" stroke="var(--brand)" stroke-width="2"/>
     ${dots}
   </svg>
-  <div style="font-size:10px;color:var(--muted);margin-top:4px;">${history.length} season${history.length!==1?'s':''} · OPLR scale 1–7</div>`;
+  <div style="font-size:10px;color:var(--muted);margin-top:4px;">${history.length} season${history.length!==1?'s':''} · OPPR scale 1–7</div>`;
 }
 
 // ── Preferences save (hand + position) ───────────────────────────────────────
@@ -436,7 +436,7 @@ function renderDirectoryCards(players){
                 ? `<div style="font-size:11px;color:var(--muted);">${p.team.name}</div>`
                 : '<div style="font-size:11px;color:var(--muted);">No team</div>'}
               <div style="display:flex;gap:8px;margin-top:3px;flex-wrap:wrap;">
-                ${p.nprp?`<span style="font-size:10px;color:var(--brand);font-weight:600;">OPLR ${p.nprp}</span>`:''}
+                ${p.nprp?`<span style="font-size:10px;color:var(--brand);font-weight:600;">OPPR ${p.nprp}</span>`:''}
                 ${hand?`<span style="font-size:10px;color:var(--muted);">${hand}</span>`:''}
                 ${pos ?`<span style="font-size:10px;color:var(--muted);">${pos}</span>` :''}
               </div>
@@ -501,7 +501,7 @@ async function viewPlayerProfile(uid){
         <div>
           <div style="font-size:18px;font-weight:700;">${profile.displayName||profile.email}</div>
           ${team?`<div style="font-size:12px;color:var(--muted);">${team.name} · ${team.group}</div>`:''}
-          ${nprp?`<div style="font-size:13px;color:var(--brand);font-weight:600;margin-top:4px;">OPLR ${nprp}</div>`:''}
+          ${nprp?`<div style="font-size:13px;color:var(--brand);font-weight:600;margin-top:4px;">OPPR ${nprp}</div>`:''}
           <div style="display:flex;gap:10px;margin-top:4px;">
             ${profile.hand?`<span style="font-size:11px;color:var(--muted);">${profile.hand==='right'?'Right':'Left'} hand</span>`:''}
             ${profile.position?`<span style="font-size:11px;color:var(--muted);">${profile.position.charAt(0).toUpperCase()+profile.position.slice(1)} side</span>`:''}
@@ -516,7 +516,7 @@ async function viewPlayerProfile(uid){
       const chart = oh.length>=2 ? renderOPLRChart(oh) : '';
       return `<div class="card" style="margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <div style="font-weight:700;font-size:13px;">📈 OnePadel League Rating</div>
+          <div style="font-weight:700;font-size:13px;">📈 OnePadel Player Rating</div>
           ${profile.currentOPLR?`<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--brand);">${profile.currentOPLR.toFixed(2)}</div>`:''}
         </div>
         ${chart||`<div style="color:var(--muted);font-size:12px;">Rating: ${oh[oh.length-1].oplr.toFixed(2)} after ${oh.length} match${oh.length!==1?'es':''}.</div>`}

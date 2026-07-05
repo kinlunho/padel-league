@@ -146,7 +146,7 @@ function filterAdminTeams(group, btn){
           ${p.phone?`· ${p.phone}`:''}${nprp}</div>`;
       }).join('')}</div>
       ${(()=>{const r=(t.players||[]).map(p=>parseFloat(p.nprp)).filter(n=>!isNaN(n));
-        return r.length?`<div style="font-size:10px;color:var(--brand);margin-top:6px;">avg OPLR ${(r.reduce((a,b)=>a+b,0)/r.length).toFixed(1)}</div>`:'';}
+        return r.length?`<div style="font-size:10px;color:var(--brand);margin-top:6px;">avg OPPR ${(r.reduce((a,b)=>a+b,0)/r.length).toFixed(1)}</div>`:'';}
       )()}
     </div>`).join('')}</div>`;
 }
@@ -426,7 +426,7 @@ function renderAdminSeason(){
     <div class="card" style="margin-bottom:12px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:4px;">🏅 Division Manager</div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">
-        Add, remove, or rename divisions. Set OPLR ranges to drive auto-seeding.
+        Add, remove, or rename divisions. Set OPPR ranges to drive auto-seeding.
         Divisions are ordered highest tier first — this order controls seeding priority and display order throughout the app.
         Changes take effect immediately for all users.
       </div>
@@ -508,12 +508,12 @@ function renderDivisionRows(){
       <input class="form-input" placeholder="Division name" value="${d.name||''}"
         style="font-size:12px;" oninput="updateDivRow(${i},'name',this.value)">
       <div>
-        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">OPLR Min</div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">OPPR Min</div>
         <input class="form-input" type="number" min="0" max="7" step="0.1" value="${d.nprpMin}"
           style="font-size:12px;" oninput="updateDivRow(${i},'nprpMin',parseFloat(this.value))">
       </div>
       <div>
-        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">OPLR Max</div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">OPPR Max</div>
         <input class="form-input" type="number" min="0" max="7" step="0.1" value="${d.nprpMax}"
           style="font-size:12px;" oninput="updateDivRow(${i},'nprpMax',parseFloat(this.value))">
       </div>
