@@ -26,7 +26,14 @@ const ConfigDB = {
       matchHours:         '7–11 PM',
       entryFee:           'HKD 3,500',
       courts:             2,
-      seasonLocked:       false  // true once fixtures generated, blocks season change
+      seasonLocked:       false,  // true once fixtures generated, blocks season change
+      // Ordered divisions — highest tier first. nprpMin/nprpMax drive auto-seeding.
+      // Admin can add, remove, reorder, and rename divisions from League Setup.
+      divisions: [
+        { name: 'Gold Division',        nprpMin: 4.0, nprpMax: 7.0 },
+        { name: 'High Silver Division', nprpMin: 3.0, nprpMax: 3.99 },
+        { name: 'Low Silver Division',  nprpMin: 0.0, nprpMax: 2.99 }
+      ]
     };
   },
 
@@ -60,6 +67,7 @@ const ConfigDB = {
     const safe = { ...fields };
     delete safe.activeSeason;  // never allow direct write of activeSeason
     delete safe.seasonLocked;  // never allow client to unlock a locked season
+    // divisions is allowed — admin can manage them from League Setup
     await db.collection('config').doc('league').set(safe, { merge: true });
   },
 

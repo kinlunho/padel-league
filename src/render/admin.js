@@ -71,6 +71,7 @@ function renderAdminTabContent(){
       <div style="font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">League Setup</div>
       <div id="admin-season"></div>`;
     renderAdminSeason();
+    renderDivisionRows();
   }
 }
 
@@ -79,7 +80,7 @@ function renderAdminTeams(){
   const container = document.getElementById('admin-teams-content');
   if(!container) return;
   const unassigned = Object.values(S.teams).filter(t=>t.group==='Unassigned');
-  const DIVISIONS  = ['Gold Division','High Silver Division','Low Silver Division'];
+  const DIVISIONS  = getDivisions();
   const allGroups  = groups();
 
   let html = '';
@@ -115,7 +116,7 @@ function filterAdminTeams(group, btn){
   });
   if(btn){ btn.style.background='var(--brand)';btn.style.color='#fff';btn.style.fontWeight='600'; }
 
-  const DIVISIONS = ['Gold Division','High Silver Division','Low Silver Division'];
+  const DIVISIONS = getDivisions();
   const teams = teamsByGroup(group);
   const list  = document.getElementById('admin-teams-list');
   if(!list) return;
@@ -417,6 +418,22 @@ function renderAdminSeason(){
       <p id="cfg-msg" style="font-size:11px;min-height:16px;margin-top:8px;"></p>
     </div>
 
+    <!-- ── Division Manager ── -->
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px;">🏅 Division Manager</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">
+        Add, remove, or rename divisions. Set NPRP ranges to drive auto-seeding.
+        Divisions are ordered highest tier first — this order controls seeding priority and display order throughout the app.
+        Changes take effect immediately for all users.
+      </div>
+      <div id="div-manager-rows"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="addDivisionRow()">+ Add Division</button>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="saveDivisions()">Save Divisions</button>
+        <p id="div-msg" style="font-size:11px;min-height:16px;margin:0;"></p>
+      </div>
+    </div>
+
     <div class="card" style="border:1px solid ${locked?'var(--red)':'var(--border)'};">
       <div style="font-weight:700;font-size:13px;margin-bottom:6px;">🔄 Season Change ${locked?'<span style="color:var(--red);font-size:11px;">· LOCKED — fixtures generated</span>':''}</div>
       ${locked
@@ -470,6 +487,95 @@ function renderAdminSeason(){
         </div>`:''}
       </div>
     </div>`;
+}
+
+// ── Division Manager ────────────────────────────────────────────────────────
+
+function renderDivisionRows(){
+  const divs = S.config?.divisions || [
+    { name:'Gold Division',        nprpMin:4.0, nprpMax:7.0 },
+    { name:'High Silver Division', nprpMin:3.0, nprpMax:3.99 },
+    { name:'Low Silver Division',  nprpMin:0.0, nprpMax:2.99 }
+  ];
+  const el = document.getElementById('div-manager-rows');
+  if(!el) return;
+  el.innerHTML = divs.map((d,i) => `
+    <div class="div-row" data-index="${i}" style="display:grid;grid-template-columns:1fr 90px 90px auto auto;gap:8px;align-items:center;margin-bottom:8px;">
+      <input class="form-input" placeholder="Division name" value="${d.name||''}"
+        style="font-size:12px;" oninput="updateDivRow(${i},'name',this.value)">
+      <div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">NPRP Min</div>
+        <input class="form-input" type="number" min="0" max="7" step="0.1" value="${d.nprpMin}"
+          style="font-size:12px;" oninput="updateDivRow(${i},'nprpMin',parseFloat(this.value))">
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">NPRP Max</div>
+        <input class="form-input" type="number" min="0" max="7" step="0.1" value="${d.nprpMax}"
+          style="font-size:12px;" oninput="updateDivRow(${i},'nprpMax',parseFloat(this.value))">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        ${i>0?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;" onclick="moveDivRow(${i},-1)">▲</button>`:'<div style="height:24px;"></div>'}
+        ${i<divs.length-1?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;" onclick="moveDivRow(${i},1)">▼</button>`:'<div style="height:24px;"></div>'}
+      </div>
+      <button class="btn btn-danger btn-sm" style="font-size:10px;" onclick="removeDivRow(${i})"
+        ${divs.length<=1?'disabled':''}>✕</button>
+    </div>`).join('');
+}
+
+// In-memory working copy of divisions being edited
+let _editDivs = null;
+
+function getEditDivs(){
+  if(!_editDivs) _editDivs = JSON.parse(JSON.stringify(S.config?.divisions || [
+    { name:'Gold Division',        nprpMin:4.0, nprpMax:7.0 },
+    { name:'High Silver Division', nprpMin:3.0, nprpMax:3.99 },
+    { name:'Low Silver Division',  nprpMin:0.0, nprpMax:2.99 }
+  ]));
+  return _editDivs;
+}
+
+function updateDivRow(i, field, val){
+  getEditDivs()[i][field] = val;
+}
+
+function moveDivRow(i, dir){
+  const divs = getEditDivs();
+  const j = i + dir;
+  if(j<0||j>=divs.length) return;
+  [divs[i],divs[j]] = [divs[j],divs[i]];
+  renderDivisionRows();
+}
+
+function removeDivRow(i){
+  const divs = getEditDivs();
+  if(divs.length <= 1){ showToast('Must have at least one division', true); return; }
+  if(!confirm(`Remove "${divs[i].name}"? Teams assigned to this division will not be moved automatically.`)) return;
+  divs.splice(i,1);
+  renderDivisionRows();
+}
+
+function addDivisionRow(){
+  const divs = getEditDivs();
+  divs.push({ name:'New Division', nprpMin:0.0, nprpMax:7.0 });
+  renderDivisionRows();
+}
+
+async function saveDivisions(){
+  const divs = getEditDivs();
+  const msgEl = document.getElementById('div-msg');
+  // Validate: all names non-empty, all ranges valid
+  for(const d of divs){
+    if(!d.name.trim()){ showToast('All divisions must have a name', true); return; }
+    if(isNaN(d.nprpMin)||isNaN(d.nprpMax)){ showToast(`Invalid NPRP range for ${d.name}`, true); return; }
+    if(d.nprpMin > d.nprpMax){ showToast(`${d.name}: Min must be ≤ Max`, true); return; }
+  }
+  try {
+    await ConfigDB.save({ divisions: divs });
+    _editDivs = null; // reset working copy — will reload from config
+    msgEl.style.color='#4ade80';
+    msgEl.textContent='Divisions saved — seeding thresholds updated immediately.';
+    addLog(`Divisions updated: ${divs.map(d=>d.name).join(', ')}`,'var(--brand)');
+  } catch(err){ msgEl.style.color='#f87171'; msgEl.textContent='Failed: '+err.message; }
 }
 
 async function saveLeagueConfig(){

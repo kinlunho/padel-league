@@ -39,6 +39,14 @@ function genClaimCode(){
   return code;
 }
 const tn=id=>S.teams[id]?S.teams[id].name:'TBD';
+// Returns ordered division names from config — single source of truth.
+// Falls back to hardcoded list only if config hasn't loaded yet.
+const getDivisions = () => {
+  const divs = S.config?.divisions;
+  if(divs && divs.length) return divs.map(d => d.name);
+  return ['Gold Division','High Silver Division','Low Silver Division'];
+};
+
 const groups=()=>{
   const all=[...new Set(Object.values(S.teams).map(t=>t.group))].sort();
   // Always show Unassigned last so it doesn't pollute the main division tabs
