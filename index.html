@@ -492,9 +492,37 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Players (one per line: Name, email, NPRP)</label>
-      <textarea class="form-input" id="ev-players" rows="8" placeholder="Alex Wong, alex@email.com, 4.5&#10;Brian Lee, brian@email.com, 3.5&#10;(email and NPRP optional)"></textarea>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Minimum 4 players, must be even number. OPPR updates for players with email accounts.</div>
+      <label class="form-label">Players</label>
+      <!-- Search box -->
+      <input class="form-input" id="ev-player-search" placeholder="Search by name or email..."
+        oninput="filterEventPlayerPicker()" style="margin-bottom:8px;">
+      <!-- Directory picker -->
+      <div id="ev-player-picker" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);
+        border-radius:6px;background:var(--surface-1);margin-bottom:8px;"></div>
+      <!-- Selected players list -->
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:0.5px;margin-bottom:6px;">Selected (<span id="ev-selected-count">0</span>)
+        <span style="font-weight:400;color:var(--muted);"> — must be even, min 4</span>
+      </div>
+      <div id="ev-selected-players" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;
+        padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);
+        margin-bottom:6px;"></div>
+      <!-- Fallback: manual entry for players not in directory -->
+      <details style="margin-top:4px;">
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;">+ Add player manually (not in directory)</summary>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Name</div>
+            <input class="form-input" id="ev-manual-name" placeholder="Name" style="width:130px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">NPRP</div>
+            <input class="form-input" id="ev-manual-nprp" placeholder="3.5" type="number" min="1" max="7" step="0.5" style="width:70px;">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addManualEventPlayer()">Add</button>
+        </div>
+      </details>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;">OPPR updates automatically for directory players after each match.</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('createEventModal')">Cancel</button>
