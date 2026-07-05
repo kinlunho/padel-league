@@ -328,6 +328,10 @@ async function submitScore(){
   const r=calcResult(sd);
   const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
   addLog(`Score ${wasConfirm?'confirmed':'submitted'}: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,wasConfirm?'var(--accent)':'var(--warn)');
+  // Trigger OPLR recalculation after match confirmed
+  if(wasConfirm || (isAdminUser() && !S.resolvingDispute)){
+    triggerOPLRUpdate(S.editMatchId);
+  }
   closeModal('scoreModal');
   showToast(wasConfirm?'Score confirmed!':'Score submitted — awaiting opponent confirmation');
 }

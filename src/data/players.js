@@ -17,6 +17,8 @@ const PlayersDB = {
         position: null,    // 'left' | 'right' (court position)
         photoURL: null,
         nprpHistory: [],   // [{ season, date, nprp, division }]
+        oplrHistory: [],   // [{ matchId, date, season, oplr, delta, opponent, teamOPLR, oppOPLR }]
+        currentOPLR: null, // latest OPLR value for quick display
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }

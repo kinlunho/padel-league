@@ -107,15 +107,26 @@ async function renderMyProfile(){
       </div>
     </div>
 
-    <!-- NPRP Trend -->
+    <!-- OPLR -->
     <div class="card" style="margin-bottom:16px;">
-      <div style="font-weight:700;font-size:13px;margin-bottom:10px;">📈 OPLR History</div>
-      ${nprpHistory.length >= 2
-        ? renderNPRPChart(nprpHistory)
-        : nprpHistory.length === 1
-          ? `<div style="color:var(--muted);font-size:12px;">Only one data point so far (${nprpHistory[0].season}: OPLR ${nprpHistory[0].nprp}). Trend will appear after more seasons.</div>`
-          : `<div style="color:var(--muted);font-size:12px;font-style:italic;">No OPLR history yet — snapshots are captured when fixtures are generated each season.</div>`
-      }
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:13px;">📈 OnePadel League Rating</div>
+        ${profile.currentOPLR
+          ? `<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--brand);">${profile.currentOPLR.toFixed(2)}</div>`
+          : currentNPRP
+            ? `<div style="font-size:12px;color:var(--muted);">Starting from NPRP ${currentNPRP}</div>`
+            : ''}
+      </div>
+      ${(()=>{
+        const oplrHist = profile.oplrHistory || [];
+        if(oplrHist.length >= 2){
+          return renderOPLRChart(oplrHist) || '';
+        }
+        if(oplrHist.length === 1){
+          return `<div style="color:var(--muted);font-size:12px;">One match played. Rating: ${oplrHist[0].oplr.toFixed(2)}. Trend appears after 2+ matches.</div>`;
+        }
+        return `<div style="color:var(--muted);font-size:12px;font-style:italic;">No matches yet — your OPLR starts from your NPRP and updates after each confirmed match.</div>`;
+      })()}
     </div>
 
     <!-- Stats -->
@@ -485,7 +496,18 @@ async function viewPlayerProfile(uid){
       </div>
     </div>
 
-    ${nprpHistory.length>=2?`<div class="card" style="margin-bottom:16px;"><div style="font-weight:700;font-size:13px;margin-bottom:10px;">📈 OPLR History</div>${renderNPRPChart(nprpHistory)}</div>`:''}
+    ${(()=>{
+      const oh = profile.oplrHistory||[];
+      if(!oh.length) return '';
+      const chart = oh.length>=2 ? renderOPLRChart(oh) : '';
+      return `<div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-weight:700;font-size:13px;">📈 OnePadel League Rating</div>
+          ${profile.currentOPLR?`<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--brand);">${profile.currentOPLR.toFixed(2)}</div>`:''}
+        </div>
+        ${chart||`<div style="color:var(--muted);font-size:12px;">Rating: ${oh[oh.length-1].oplr.toFixed(2)} after ${oh.length} match${oh.length!==1?'es':''}.</div>`}
+      </div>`;
+    })()}
 
     <div class="card" style="margin-bottom:16px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:12px;">📊 Season Stats</div>
