@@ -391,11 +391,16 @@ if (!IS_LOCAL_DEV){
       ConfigDB.subscribe(() => {
         applyConfigToUI();
         configReady = true;
+        // Only subscribe to teams/matches AFTER config sets ACTIVE_SEASON —
+        // querying before this means TeamsDB uses the default season value
+        // and may return empty, causing the 4s timeout to fire every load.
+        if(!teamsReady){
+          TeamsDB.subscribe(() => { teamsReady = true; tryReady(); });
+          MatchesDB.subscribe(() => { tryReady(); });
+        }
         tryReady();
       });
       await resolveIdentity(firebaseUser);
-      TeamsDB.subscribe(() => { teamsReady = true; tryReady(); });
-      MatchesDB.subscribe(() => { tryReady(); });
       showApp();
       setNavUser(firebaseUser);
       applyRoleGating();
