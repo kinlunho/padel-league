@@ -347,17 +347,18 @@ async function renderAdminUsers(){
             const isSelf    = u.uid === firebase.auth().currentUser?.uid;
             return `<tr style="border-top:1px solid var(--border);">
               <td style="padding:8px;">${u.email}${u.displayName?`<div style="font-size:10px;color:var(--muted);">${u.displayName}</div>`:''}</td>
-              <td style="padding:8px;"><span style="color:${roleColor};font-weight:600;">${u.role}</span></td>
+              <td style="padding:8px;"><span style="color:${roleColor};font-weight:600;">${u.role}${isSelf?' <span style="font-size:9px;color:var(--muted);">(you)</span>':''}</span></td>
               <td style="padding:8px;">${u.teamName || (u.teamId && S.teams[u.teamId] ? S.teams[u.teamId].name : '—')}</td>
               <td style="padding:8px;color:var(--muted);">${u.lastSignIn?new Date(u.lastSignIn).toLocaleDateString('en-HK'):'never'}</td>
               <td style="padding:8px;">
-                ${isSelf
-                  ?'<span style="font-size:10px;color:var(--muted);">(you)</span>'
-                  :`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px;" onclick="openEditUserModal('${u.uid}','${u.email}','${u.role}','${u.teamId||''}')">Edit</button>
-                    ${u.role==='captain'&&!u.teamId
-                      ?`<button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:10px;margin-left:4px;" onclick="adminRegisterTeamOnBehalf('${u.uid}','${u.email}')">+ Register Team</button>`
-                      :''}
-                    <button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:10px;margin-left:4px;" onclick="adminDeleteUser('${u.uid}','${u.email}')">Delete</button>`}
+                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px;"
+                  onclick="openEditUserModal('${u.uid}','${u.email}','${u.role}','${u.teamId||''}',${isSelf})">Edit</button>
+                ${u.role==='captain'&&!u.teamId
+                  ?`<button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:10px;margin-left:4px;" onclick="adminRegisterTeamOnBehalf('${u.uid}','${u.email}')">+ Register Team</button>`
+                  :''}
+                ${!isSelf
+                  ?`<button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:10px;margin-left:4px;" onclick="adminDeleteUser('${u.uid}','${u.email}')">Delete</button>`
+                  :''}
               </td>
             </tr>`;
           }).join('')}</tbody>
@@ -656,10 +657,13 @@ async function adminCreateUser(){
   } catch(err){ showToast('Failed: ' + err.message, true); }
 }
 
-function openEditUserModal(uid, email, role, teamId){
+function openEditUserModal(uid, email, role, teamId, isSelf=false){
   S.editUserId = uid;
   document.getElementById('edit-user-email-lbl').textContent = email;
   document.getElementById('edit-user-role').value = role;
+  // Block self role-change — prevents accidental admin lockout
+  const roleEl = document.getElementById('edit-user-role');
+  if(roleEl){ roleEl.disabled = isSelf; roleEl.title = isSelf ? 'Cannot change your own role' : ''; }
   // Populate team options
   const sel = document.getElementById('edit-user-team');
   sel.innerHTML = '<option value="">— no team —</option>' +
