@@ -186,8 +186,10 @@ function renderEventDetail(container){
           }
         </div>`).join('')}
       ${activeRound.matches.filter(m=>m.isBye).map(m=>`
-        <div class="card" style="opacity:0.6;">
-          <div style="font-size:11px;color:var(--muted);">BYE — ${m.byeName} sits out this round</div>
+        <div class="card" style="opacity:0.6;border-left:3px solid var(--muted);">
+          <div style="font-size:11px;font-weight:600;margin-bottom:2px;">⏸ Bye this round</div>
+          <div style="font-size:12px;color:var(--muted);">${m.byeNames||m.byeName||'—'} sit out</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">Lowest ranked pair rotates out each round</div>
         </div>`).join('')}
     </div>`:''}
 

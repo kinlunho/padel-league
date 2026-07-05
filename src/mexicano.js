@@ -42,14 +42,38 @@ function mexicanoGenerateRound(event, roundNumber, standings){
     });
   }
 
-  // Pair consecutive players: [0,1] vs [2,3], [4,5] vs [6,7] etc.
+  // Mexicano pairing — supports any even player count including non-multiples of 4.
+  // If players % 4 !== 0, a rotating bye PAIR sits out each round.
+  // Bye rotation: deterministic based on round number so every pair sits out evenly.
+  //
+  // Example: 6 players → 1 match (4 play) + 1 bye pair (2 sit out)
+  // Example: 8 players → 2 matches (all play)
+  // Example: 10 players → 2 matches (8 play) + 1 bye pair (2 sit out)
+
   const matches = [];
   const courts  = event.courts || 1;
   let courtIdx  = 1;
+  let playingPlayers = [...ordered];
 
-  for(let i=0; i+3<ordered.length; i+=4){
-    const teamA = [ordered[i],   ordered[i+1]];
-    const teamB = [ordered[i+2], ordered[i+3]];
+  // If not a multiple of 4, rotate a bye pair out
+  // Bye pair = last 2 players in the ranked order this round
+  // (lowest ranked sit out — gives them incentive to score well)
+  let byePair = null;
+  if(ordered.length % 4 !== 0 && ordered.length >= 4){
+    byePair = playingPlayers.splice(playingPlayers.length - 2, 2);
+    matches.push({
+      matchId:    `r${roundNumber}_bye`,
+      roundNumber,
+      isBye:      true,
+      byeUids:    byePair.map(p=>p.uid),
+      byeNames:   byePair.map(p=>p.name).join(' & '),
+    });
+  }
+
+  // Pair remaining players: [0,1] vs [2,3], [4,5] vs [6,7] etc.
+  for(let i=0; i+3<playingPlayers.length; i+=4){
+    const teamA = [playingPlayers[i],   playingPlayers[i+1]];
+    const teamB = [playingPlayers[i+2], playingPlayers[i+3]];
     matches.push({
       matchId:    `r${roundNumber}_m${Math.floor(i/4)+1}`,
       roundNumber,
@@ -63,18 +87,6 @@ function mexicanoGenerateRound(event, roundNumber, standings){
       status:     'pending'
     });
     courtIdx = courtIdx >= courts ? 1 : courtIdx + 1;
-  }
-
-  // Bye if odd player count (shouldn't happen with even registration, but safety net)
-  if(ordered.length % 2 !== 0){
-    const byePlayer = ordered[ordered.length-1];
-    matches.push({
-      matchId:    `r${roundNumber}_bye`,
-      roundNumber,
-      isBye:      true,
-      byeUid:     byePlayer.uid,
-      byeName:    byePlayer.name,
-    });
   }
 
   return { roundNumber, matches, generatedAt: new Date().toISOString() };
@@ -95,10 +107,8 @@ function mexicanoCalcStandings(event, allRounds){
   allRounds.forEach(round=>{
     (round.matches||[]).forEach(m=>{
       if(m.isBye){
-        // Bye player gets walkover points
-        if(standings[m.byeUid]){
-          standings[m.byeUid].points += 2; // walkover = 2 points
-        }
+        // Bye pair sits out — no points awarded (rotating bye, not a walkover)
+        // This prevents artificially inflating ratings of lower-ranked players
         return;
       }
       if(m.status!=='confirmed'||m.scoreA===null||m.scoreB===null) return;
