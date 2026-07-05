@@ -354,6 +354,9 @@ async function renderAdminUsers(){
                 ${isSelf
                   ?'<span style="font-size:10px;color:var(--muted);">(you)</span>'
                   :`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px;" onclick="openEditUserModal('${u.uid}','${u.email}','${u.role}','${u.teamId||''}')">Edit</button>
+                    ${u.role==='captain'&&!u.teamId
+                      ?`<button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:10px;margin-left:4px;" onclick="adminRegisterTeamOnBehalf('${u.uid}','${u.email}')">+ Register Team</button>`
+                      :''}
                     <button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:10px;margin-left:4px;" onclick="adminDeleteUser('${u.uid}','${u.email}')">Delete</button>`}
               </td>
             </tr>`;
@@ -682,6 +685,22 @@ async function saveUserRole(){
     renderAdminUsers();
   } catch(err){ showToast('Failed: ' + err.message, true); }
 }
+// Admin registers a team on behalf of a captain
+// Sets S.onBehalfOf so registerTeam() uses the captain's identity, not admin's
+function adminRegisterTeamOnBehalf(captainUid, captainEmail){
+  S.onBehalfOf = { uid: captainUid, email: captainEmail };
+  // Pre-fill the email field and update modal title
+  openModal('registerModal');
+  const emailEl = document.getElementById('reg-email');
+  if(emailEl){
+    emailEl.value = captainEmail;
+    emailEl.readOnly = true;
+    emailEl.style.opacity = '0.6';
+  }
+  const titleEl = document.querySelector('#registerModal .modal-title');
+  if(titleEl) titleEl.textContent = `Register Team — on behalf of ${captainEmail}`;
+}
+
 async function approveReschedule(matchId){
   const m=S.matches[matchId]; const r=m.rescheduleRequest;
   if(!r){showToast('No request found',true);return;}

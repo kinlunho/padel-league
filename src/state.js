@@ -28,6 +28,7 @@ const S = {
   koTab: 'standings',      // active sub-tab inside Knockout page
   isKOEntry: false,         // true when admin is entering a KO score (blocks draws)
   isConfirmMode: false,      // true when score modal opened for confirmation (hides attendance)
+  onBehalfOf: null,          // { uid, email } set by admin when registering team for a captain
   appReady: false,          // true only after config + first teams snapshot resolve
 };
 

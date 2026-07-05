@@ -19,11 +19,18 @@ function openModal(id){
 }
 function closeModal(id){
   document.getElementById(id).classList.remove('open');
-  // Reset KO entry flag and restore hidden modal elements when score modal closes
   if(id==='scoreModal' && S.isKOEntry){
     S.isKOEntry=false;
     const goBox=document.getElementById('sc-games-only');
     if(goBox){const r=goBox.closest('div');if(r)r.style.display='';}
+  }
+  // Clear admin on-behalf state if registration modal is closed without submitting
+  if(id==='registerModal' && S.onBehalfOf){
+    S.onBehalfOf=null;
+    const emailEl=document.getElementById('reg-email');
+    if(emailEl){emailEl.readOnly=false;emailEl.style.opacity='';}
+    const titleEl=document.querySelector('#registerModal .modal-title');
+    if(titleEl) titleEl.textContent='Register Team';
   }
 }
 
@@ -113,10 +120,12 @@ async function registerTeam(){
   if(players.length<2){showToast('Minimum 2 players required',true);return;}
 
 
-  // Capture who is registering this team for admin matching and audit trail
+  // Admin registering on behalf of a captain uses S.onBehalfOf identity.
+  // Otherwise falls back to the signed-in user (normal captain self-registration).
   const currentUser = firebase.auth().currentUser;
-  const captainUid   = currentUser ? currentUser.uid   : null;
-  const captainEmail = currentUser ? currentUser.email : email;
+  const onBehalf    = S.onBehalfOf;
+  const captainUid   = onBehalf ? onBehalf.uid   : (currentUser ? currentUser.uid   : null);
+  const captainEmail = onBehalf ? onBehalf.email : (currentUser ? currentUser.email : email);
 
   const fixturesAlreadyExist=Object.values(S.matches).some(m=>m.group===group&&m.round);
   try {
@@ -139,6 +148,14 @@ async function registerTeam(){
     }
 
     addLog(`${name} registered in ${group}`+(fixturesAlreadyExist?' (after fixtures generated — no auto matches)':''),'var(--accent)');
+    // Clear on-behalf state and restore modal to normal state
+    if(S.onBehalfOf){
+      S.onBehalfOf = null;
+      const emailEl = document.getElementById('reg-email');
+      if(emailEl){ emailEl.readOnly=false; emailEl.style.opacity=''; }
+      const titleEl = document.querySelector('#registerModal .modal-title');
+      if(titleEl) titleEl.textContent = 'Register Team';
+    }
     closeModal('registerModal');
     if(fixturesAlreadyExist){
       showToast(`${name} added — but ${group} fixtures already exist. Schedule their matches manually.`,true);
