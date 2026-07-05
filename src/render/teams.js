@@ -66,7 +66,7 @@ function renderNPRPSeedingPanel(){
       </div>
     </div>
     ${mismatches ? `<div style="font-size:11px;color:var(--warn);margin-bottom:8px;">⚠ ${mismatches} team${mismatches!==1?'s':''} in a division that doesn't match their NPRP average.</div>` : ''}
-    ${unrated ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">⚬ ${unrated} team${unrated!==1?'s':''} have no NPRP ratings — cannot be auto-seeded.</div>` : ''}
+    ${unrated ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">⚬ ${unrated} team${unrated!==1?'s':''} have no OPLR ratings — cannot be auto-seeded.</div>` : ''}
     <div style="overflow-x:auto;">
       <table style="width:100%;font-size:11px;">
         <thead>
@@ -131,7 +131,7 @@ async function applyNPRPSeeding(reseedAll=false){
   });
 
   if(!toUpdate.length){
-    showToast(reseedAll ? 'All rated teams already in correct division' : 'No unassigned teams with NPRP ratings');
+    showToast(reseedAll ? 'All rated teams already in correct division' : 'No unassigned teams with OPLR ratings');
     return;
   }
 
@@ -206,7 +206,7 @@ function renderTeamsList(group){
       <div style="margin-bottom:8px;">${(t.players||[]).map((p,i)=>{
         const claimed=p.claimedByEmail;
         const claimBadge=claimed?`<span style="font-size:9px;color:var(--accent);">✓ linked</span>`:(isAdminUser()?`<span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;">code: ${p.claimCode||'—'}</span>`:'');
-        return `<div style="font-size:12px;color:var(--muted);margin-bottom:2px;">👤 ${p.name||p}${i===0?' <span style="font-size:9px;color:var(--accent);background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:8px;">cap</span>':''}${showPhones&&p.phone?` <span style="color:var(--muted);">· ${p.phone}</span>`:''}${(showPhones||canEditRoster(t))&&p.nprp?` <span style="font-size:9px;color:var(--brand);font-weight:600;">NPRP ${p.nprp}</span>`:''} ${claimBadge}</div>`;
+        return `<div style="font-size:12px;color:var(--muted);margin-bottom:2px;">👤 ${p.name||p}${i===0?' <span style="font-size:9px;color:var(--accent);background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:8px;">cap</span>':''}${showPhones&&p.phone?` <span style="color:var(--muted);">· ${p.phone}</span>`:''}${(showPhones||canEditRoster(t))&&p.nprp?` <span style="font-size:9px;color:var(--brand);font-weight:600;">OPLR ${p.nprp}</span>`:''} ${claimBadge}</div>`;
       }).join('')}</div>
       <div style="font-size:11px;color:var(--muted);">📧 ${t.email} &nbsp;·&nbsp; <span style="color:var(--accent);">${(t.players||[]).length}p</span>${avg!==null?` &nbsp;·&nbsp; <span style="color:var(--brand);">seed avg ${avg.toFixed(2)}</span>`:''}${showPhones?' &nbsp;·&nbsp; <span style="color:var(--gold);">📱 phones visible (admin)</span>':''}</div>
     </div>`;

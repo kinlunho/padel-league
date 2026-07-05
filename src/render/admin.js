@@ -508,12 +508,12 @@ function renderDivisionRows(){
       <input class="form-input" placeholder="Division name" value="${d.name||''}"
         style="font-size:12px;" oninput="updateDivRow(${i},'name',this.value)">
       <div>
-        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">NPRP Min</div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">OPLR Min</div>
         <input class="form-input" type="number" min="0" max="7" step="0.1" value="${d.nprpMin}"
           style="font-size:12px;" oninput="updateDivRow(${i},'nprpMin',parseFloat(this.value))">
       </div>
       <div>
-        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">NPRP Max</div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:2px;">OPLR Max</div>
         <input class="form-input" type="number" min="0" max="7" step="0.1" value="${d.nprpMax}"
           style="font-size:12px;" oninput="updateDivRow(${i},'nprpMax',parseFloat(this.value))">
       </div>
