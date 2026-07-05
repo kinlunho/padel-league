@@ -113,8 +113,19 @@ async function updateOPLRForMatch(matchId){
     return snap.empty ? null : { uid: snap.docs[0].id, ...snap.docs[0].data() };
   };
 
-  const t1Docs = await Promise.all(t1Players.map(p => fetchPlayerDoc(p.claimedByEmail)));
-  const t2Docs = await Promise.all(t2Players.map(p => fetchPlayerDoc(p.claimedByEmail)));
+  // For unlinked players (no claimedByEmail), create a synthetic doc keyed by pid
+  // so their OPLR still gets tracked even without an Auth account
+  const fetchOrSyntheticDoc = async (player, teamId, idx) => {
+    if(player.claimedByEmail) return fetchPlayerDoc(player.claimedByEmail);
+    // No linked account — use pid as synthetic key, NPRP as baseline
+    const pid = `${teamId}_p${idx}`;
+    const snap = await db.collection('oplrUnlinked').doc(pid).get();
+    if(snap.exists) return { uid: null, _syntheticId: pid, ...snap.data() };
+    return { uid: null, _syntheticId: pid, oplrHistory: [], currentOPLR: null };
+  };
+
+  const t1Docs = await Promise.all(t1Players.map((p,i) => fetchOrSyntheticDoc(p, m.t1, i)));
+  const t2Docs = await Promise.all(t2Players.map((p,i) => fetchOrSyntheticDoc(p, m.t2, i)));
 
   // Calculate team OPLRs
   const t1OPLR = teamOPLR(
@@ -144,7 +155,10 @@ async function updateOPLRForMatch(matchId){
 
   // Calculate and write OPLR updates for each player
   const writeOPLR = async (playerDoc, nprp, actual, expected) => {
-    if(!playerDoc?.uid) return; // unlinked player — skip
+    if(!playerDoc) return;
+    const isLinked = !!playerDoc.uid;
+    const isSynthetic = !!playerDoc._syntheticId;
+    if(!isLinked && !isSynthetic) return; // no doc at all — skip
 
     const currentOPLR = getPlayerOPLR(playerDoc, nprp);
     const matchCount  = getMatchCount(playerDoc);
@@ -172,10 +186,18 @@ async function updateOPLRForMatch(matchId){
       oppOPLR:  Math.round((actual===1?t2OPLR:t1OPLR)*100)/100,
     };
 
-    await db.collection('players').doc(playerDoc.uid).update({
-      oplrHistory: firebase.firestore.FieldValue.arrayUnion(entry),
-      currentOPLR: newOPLR
-    });
+    if(isLinked){
+      await db.collection('players').doc(playerDoc.uid).update({
+        oplrHistory: firebase.firestore.FieldValue.arrayUnion(entry),
+        currentOPLR: newOPLR
+      });
+    } else if(isSynthetic){
+      // Store unlinked player OPLR — will merge when they link their account
+      await db.collection('oplrUnlinked').doc(playerDoc._syntheticId).set({
+        oplrHistory: firebase.firestore.FieldValue.arrayUnion(entry),
+        currentOPLR: newOPLR
+      }, { merge: true });
+    }
   };
 
   // Process team 1 players

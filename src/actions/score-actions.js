@@ -270,6 +270,7 @@ async function submitScore(){
     await MatchesDB.update(S.editMatchId,{scoreData:sd,status:'confirmed',notes});
     addLog(`⚖ Dispute resolved by admin: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,'var(--gold)');
     S.resolvingDispute=false;
+    triggerOPLRUpdate(S.editMatchId); // fire before return
     closeModal('scoreModal');
     showToast('Dispute resolved — score confirmed');
     return;
@@ -287,6 +288,7 @@ async function submitScore(){
     if(adminAttendance!==null&&adminAttendance!==undefined) adminFields.players=adminAttendance;
     await MatchesDB.update(S.editMatchId, adminFields);
     addLog(`Score entered by admin: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,'var(--gold)');
+    triggerOPLRUpdate(S.editMatchId); // fire before return
     closeModal('scoreModal');
     showToast('Score entered and confirmed (admin entry)');
     return;
@@ -328,8 +330,8 @@ async function submitScore(){
   const r=calcResult(sd);
   const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
   addLog(`Score ${wasConfirm?'confirmed':'submitted'}: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,wasConfirm?'var(--accent)':'var(--warn)');
-  // Trigger OPLR recalculation after match confirmed
-  if(wasConfirm || (isAdminUser() && !S.resolvingDispute)){
+  // OPLR trigger for captain confirmation path
+  if(wasConfirm){
     triggerOPLRUpdate(S.editMatchId);
   }
   closeModal('scoreModal');
