@@ -17,7 +17,7 @@ function renderRosterPlayerRows(players){
   list.innerHTML=players.map((p,i)=>{
     const claimStatus=p.claimedByEmail
       ?`<span style="font-size:9px;color:var(--accent);">✓ linked to ${p.claimedByEmail}</span>`
-      :`<span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;">code: ${p.claimCode}</span> <button type="button" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:10px;" onclick="regenerateRosterCode(${i})">↻ regenerate</button>`;
+      :'';
     const nprpOpts=[1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0]
       .map(v=>`<option value="${v}"${parseFloat(p.nprp)===v?' selected':''}>${v}</option>`).join('');
     return `<div class="player-row" data-pid="${p.pid}" data-code="${p.claimCode||''}" data-claimed="${p.claimedByEmail||''}">
@@ -110,34 +110,6 @@ async function saveRosterEdit(){
   }
 }
 
-// ════════ JOIN AS PLAYER (claim-code linking) ════════
-async function confirmJoinPlayer(){
-  const code=document.getElementById('join-claim-code').value.trim().toUpperCase();
-  if(!code){showToast('Enter a claim code',true);return;}
-  if(!S.userEmail){showToast('Sign in first',true);return;}
-  let found=null,foundTeam=null;
-  Object.values(S.teams).forEach(t=>{
-    (t.players||[]).forEach(p=>{
-      if(p.claimCode&&p.claimCode.toUpperCase()===code) {found=p;foundTeam=t;}
-    });
-  });
-  if(!found){showToast('Code not recognized — check with your captain',true);return;}
-  if(found.claimedByEmail){showToast('This slot is already linked to another account',true);return;}
-  // Write updated players array to Firestore with this slot claimed
-  const updatedPlayers=(foundTeam.players||[]).map(p=>
-    p.pid===found.pid ? {...p,claimedByEmail:S.userEmail} : p
-  );
-  try {
-    await TeamsDB.update(foundTeam.id,{players:updatedPlayers});
-    S.myPlayerTeamId=foundTeam.id;
-    addLog(`${S.userEmail} linked to ${found.name} on ${foundTeam.name}`,'var(--accent)');
-    closeModal('joinPlayerModal');
-    showToast(`Linked! You're now following ${foundTeam.name}.`);
-    renderHome();
-  } catch(err){
-    showToast('Failed to claim slot: ' + err.message, true);
-  }
-}
 function openReschedule(id){
   S.editMatchId=id;
   const m=S.matches[id];

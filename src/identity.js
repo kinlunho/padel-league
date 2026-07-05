@@ -84,19 +84,8 @@ async function resolveIdentity(firebaseUser){
     // Treat them as captain locally so they can manage the team they just created.
     if (!S.isCaptain && membership.role === 'captain') S.isCaptain = true;
   }
-
-  // Player claim-code linking — separate from captaincy, uses roster slot email
-  if (S.userEmail){
-    Object.values(S.teams).forEach(t => {
-      (t.players || []).forEach(p => {
-        if (p.claimedByEmail && p.claimedByEmail.toLowerCase() === S.userEmail.toLowerCase())
-          S.myPlayerTeamId = t.id;
-      });
-    });
-  }
 }
 
-// ════════ NAV USER PILL ════════
 function roleLabel(){
   if (isAdminUser())   return 'Admin';
   if (isCaptainUser()) return 'Captain';
@@ -137,8 +126,7 @@ function applyRoleGating(){
 
   const schBtn = document.getElementById('sch-page-btn');
   if (schBtn) schBtn.style.display = admin ? '' : 'none';
-  const joinBtn = document.getElementById('nav-join-btn');
-  if (joinBtn) joinBtn.style.display = !w ? '' : 'none';
+
   const adminTab = document.getElementById('nav-admin-tab');
   if (adminTab) adminTab.style.display = admin ? '' : 'none';
   const adminLabel = document.getElementById('admin-season-label');
