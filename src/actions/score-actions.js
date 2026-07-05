@@ -62,7 +62,8 @@ function renderAttendanceSection(matchId, isConfirm){
   const section = document.getElementById('sc-attendance');
   if(!section) return;
 
-  if(isConfirm || S.resolvingDispute || editingKO){
+  // Skip attendance for admin resolves and KO finals
+  if(S.resolvingDispute || editingKO){
     section.style.display='none';
     return;
   }
@@ -70,19 +71,32 @@ function renderAttendanceSection(matchId, isConfirm){
   const m = S.matches[matchId];
   if(!m){ section.style.display='none'; return; }
 
-  // Determine which team's roster to show
-  // Captain sees own team. Admin sees both teams.
   const myTeamId = S.myTeamId;
-  const teamsToShow = isAdminUser()
-    ? [m.t1, m.t2].filter(Boolean)
-    : myTeamId && (m.t1===myTeamId||m.t2===myTeamId)
-      ? [myTeamId]
-      : [];
+  const existing = m.players || [];
+
+  let teamsToShow, headerText, subText;
+
+  if(isAdminUser()){
+    // Admin sees both teams always
+    teamsToShow = [m.t1, m.t2].filter(Boolean);
+    headerText = 'Who played this match?';
+    subText = 'Untick absent players from either team';
+  } else if(isConfirm){
+    // Confirming captain marks THEIR OWN team's players
+    // (submitter already marked theirs — now we collect the other side)
+    const myTeam = myTeamId && (m.t1===myTeamId||m.t2===myTeamId) ? myTeamId : null;
+    teamsToShow = myTeam ? [myTeam] : [];
+    headerText = 'Who played from your team?';
+    subText = 'Untick players who were absent from your side';
+  } else {
+    // Submitting captain marks their own team
+    const myTeam = myTeamId && (m.t1===myTeamId||m.t2===myTeamId) ? myTeamId : null;
+    teamsToShow = myTeam ? [myTeam] : [];
+    headerText = 'Who played from your team?';
+    subText = 'Untick absent players — the opposing captain will confirm their side';
+  }
 
   if(!teamsToShow.length){ section.style.display='none'; return; }
-
-  // Build existing selection from match doc (if re-opening)
-  const existing = m.players || [];
 
   const rows = teamsToShow.map(teamId => {
     const team = S.teams[teamId];
@@ -94,7 +108,8 @@ function renderAttendanceSection(matchId, isConfirm){
       : '';
     const checkboxes = players.map((p,i) => {
       const pid = `${teamId}_p${i}`;
-      const checked = existing.length===0 || existing.includes(pid); // pre-tick all if no existing record
+      // Pre-tick: if no record yet = all played. If record exists, check if this pid is in it.
+      const checked = existing.length===0 || existing.includes(pid);
       return `<label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:3px 0;">
         <input type="checkbox" id="att-${pid}" value="${pid}" ${checked?'checked':''}
           style="width:15px;height:15px;accent-color:var(--accent);">
@@ -109,8 +124,8 @@ function renderAttendanceSection(matchId, isConfirm){
   section.innerHTML=`
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">
-        Who played this match?
-        <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px;">Untick absent players</span>
+        ${headerText}
+        <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px;">${subText}</span>
       </div>
       ${rows}
     </div>`;
@@ -278,9 +293,37 @@ async function submitScore(){
   }
 
   const realSubmitter=wasConfirm?m.submittedBy:(isCaptainUser()?S.myTeamId:m.t1);
-  const attendancePlayers = wasConfirm ? undefined : getAttendancePlayers();
-  const updateFields = {scoreData:sd,status:wasConfirm?'confirmed':'pending-confirm',submittedBy:realSubmitter,notes};
-  if(attendancePlayers !== null && attendancePlayers !== undefined) updateFields.players = attendancePlayers;
+  const newAttendance = getAttendancePlayers(); // null = all played, array = specific players
+
+  let finalPlayers;
+  if(wasConfirm){
+    // Merge: keep submitter's team players already recorded, add confirmer's team players
+    const existing = m.players || [];
+    if(newAttendance === null){
+      // Confirmer says all their players played — keep existing + add all confirmer's team
+      const myTeamId = S.myTeamId;
+      const confirmTeamId = myTeamId && (m.t1===myTeamId||m.t2===myTeamId) ? myTeamId : null;
+      if(confirmTeamId && existing.length > 0){
+        const confirmTeamPlayers = (S.teams[confirmTeamId]?.players||[]).map((_,i)=>`${confirmTeamId}_p${i}`);
+        finalPlayers = [...new Set([...existing, ...confirmTeamPlayers])];
+      } else {
+        finalPlayers = existing.length ? existing : null; // null = all played
+      }
+    } else {
+      // Confirmer marked specific players — merge with existing
+      finalPlayers = [...new Set([...existing, ...newAttendance])];
+    }
+  } else {
+    finalPlayers = newAttendance; // submitter's side only at this point
+  }
+
+  const updateFields = {
+    scoreData:sd,
+    status:wasConfirm?'confirmed':'pending-confirm',
+    submittedBy:realSubmitter,
+    notes
+  };
+  if(finalPlayers !== null && finalPlayers !== undefined) updateFields.players = finalPlayers;
   await MatchesDB.update(S.editMatchId, updateFields);
   const r=calcResult(sd);
   const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
