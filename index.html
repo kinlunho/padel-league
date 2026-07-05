@@ -85,7 +85,7 @@
     <button class="nav-logout" onclick="handleSignOut()">Sign out</button>
   </div>
   <button class="btn btn-ghost btn-sm" id="nav-join-btn" onclick="openModal('joinPlayerModal')" style="display:none;">Join as Player</button>
-  <button class="btn btn-ghost btn-sm" id="nav-profile-btn" onclick="openModal('profileModal')" style="display:none;">My Profile</button>
+  <!-- My Profile button removed — account settings now live in Profile → Settings tab -->
   <button class="btn btn-primary btn-sm" id="nav-register-btn" onclick="openModal('registerModal')" style="display:none;">+ Register Team</button>
 </nav>
 
@@ -177,6 +177,7 @@
   <div class="group-tabs" id="profile-sub-tabs">
     <button class="group-tab active profile-tab" onclick="setProfileTab('mine',this)">My Profile</button>
     <button class="group-tab profile-tab" onclick="setProfileTab('directory',this)">Player Directory</button>
+    <button class="group-tab profile-tab" onclick="setProfileTab('settings',this)">Settings</button>
   </div>
   <div id="profile-content" style="margin-top:16px;"></div>
 </div>

@@ -11,7 +11,8 @@ function renderProfilePage(){
   const activeBtn = document.querySelector(`.profile-tab[onclick*="${tab}"]`);
   if(activeBtn) activeBtn.classList.add('active');
   if(tab === 'mine') renderMyProfile();
-  else renderPlayerDirectory();
+  else if(tab === 'directory') renderPlayerDirectory();
+  else if(tab === 'settings') renderProfileSettings();
 }
 
 function setProfileTab(tab, el){
@@ -19,7 +20,8 @@ function setProfileTab(tab, el){
   document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
   if(el) el.classList.add('active');
   if(tab === 'mine') renderMyProfile();
-  else renderPlayerDirectory();
+  else if(tab === 'directory') renderPlayerDirectory();
+  else if(tab === 'settings') renderProfileSettings();
 }
 
 // ── My Profile ────────────────────────────────────────────────────────────────
@@ -243,6 +245,100 @@ async function uploadProfilePhoto(input){
     showToast('Upload failed: '+err.message, true);
   }
   input.value=''; // reset so same file can be re-selected
+}
+
+// ── Settings tab ─────────────────────────────────────────────────────────────
+
+function renderProfileSettings(){
+  const container = document.getElementById('profile-content');
+  if(!S.userEmail){
+    container.innerHTML='<div style="color:var(--muted);">Sign in to access settings.</div>';
+    return;
+  }
+
+  const currentUser = firebase.auth().currentUser;
+
+  container.innerHTML=`
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:14px;">👤 Account</div>
+
+      <div class="form-group">
+        <label class="form-label">Display Name</label>
+        <input class="form-input" id="settings-name" placeholder="Your name (shown in nav and to others)"
+          value="${currentUser?.displayName||''}">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Shown in the nav bar and to the admin instead of your email.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" value="${S.userEmail}" disabled style="opacity:0.5;cursor:not-allowed;">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Email cannot be changed — contact an admin.
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-sm" onclick="saveSettingsName()">Save Name</button>
+      <p id="settings-name-msg" style="font-size:11px;min-height:14px;margin-top:6px;"></p>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:13px;margin-bottom:14px;">🔒 Change Password</div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input class="form-input" id="settings-pw" type="password" placeholder="Min 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input class="form-input" id="settings-pw2" type="password" placeholder="Repeat new password">
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
+        If your session is old you may be asked to sign in again before the change takes effect.
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveSettingsPassword()">Change Password</button>
+      <p id="settings-pw-msg" style="font-size:11px;min-height:14px;margin-top:6px;"></p>
+    </div>`;
+}
+
+async function saveSettingsName(){
+  const name = document.getElementById('settings-name')?.value.trim();
+  const msg  = document.getElementById('settings-name-msg');
+  if(!name){ msg.style.color='var(--red)'; msg.textContent='Name cannot be empty.'; return; }
+  try {
+    await firebase.auth().currentUser.updateProfile({ displayName: name });
+    // Also update player profile doc
+    const uid = firebase.auth().currentUser?.uid;
+    if(uid) await PlayersDB.updateProfile(uid, { displayName: name });
+    // Update nav display
+    const navEl = document.getElementById('nav-user-email');
+    if(navEl) navEl.textContent = name;
+    msg.style.color='var(--accent)'; msg.textContent='Name updated ✓';
+    setTimeout(()=>{ msg.textContent=''; },2500);
+  } catch(err){ msg.style.color='var(--red)'; msg.textContent=err.message; }
+}
+
+async function saveSettingsPassword(){
+  const pw  = document.getElementById('settings-pw')?.value;
+  const pw2 = document.getElementById('settings-pw2')?.value;
+  const msg = document.getElementById('settings-pw-msg');
+  if(!pw){ msg.style.color='var(--red)'; msg.textContent='Enter a new password.'; return; }
+  if(pw.length < 6){ msg.style.color='var(--red)'; msg.textContent='Password must be at least 6 characters.'; return; }
+  if(pw !== pw2){ msg.style.color='var(--red)'; msg.textContent='Passwords do not match.'; return; }
+  try {
+    await firebase.auth().currentUser.updatePassword(pw);
+    document.getElementById('settings-pw').value='';
+    document.getElementById('settings-pw2').value='';
+    msg.style.color='var(--accent)'; msg.textContent='Password changed ✓';
+    setTimeout(()=>{ msg.textContent=''; },2500);
+  } catch(err){
+    if(err.code==='auth/requires-recent-login'){
+      msg.style.color='var(--warn)';
+      msg.textContent='Session too old — sign out and back in, then try again.';
+    } else {
+      msg.style.color='var(--red)'; msg.textContent=err.message;
+    }
+  }
 }
 
 // ── Player Directory ──────────────────────────────────────────────────────────

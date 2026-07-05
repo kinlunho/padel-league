@@ -139,8 +139,6 @@ function applyRoleGating(){
   if (schBtn) schBtn.style.display = admin ? '' : 'none';
   const joinBtn = document.getElementById('nav-join-btn');
   if (joinBtn) joinBtn.style.display = !w ? '' : 'none';
-  const profileBtn = document.getElementById('nav-profile-btn');
-  if (profileBtn) profileBtn.style.display = S.userEmail ? '' : 'none';
   const adminTab = document.getElementById('nav-admin-tab');
   if (adminTab) adminTab.style.display = admin ? '' : 'none';
   const adminLabel = document.getElementById('admin-season-label');
