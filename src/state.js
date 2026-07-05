@@ -28,7 +28,8 @@ const S = {
   koTab: 'standings',      // active sub-tab inside Knockout page
   isKOEntry: false,         // true when admin is entering a KO score (blocks draws)
   isConfirmMode: false,      // true when score modal opened for confirmation (hides attendance)
-  onBehalfOf: null,          // { uid, email } set by admin when registering team for a captain
+  onBehalfOf: null,
+  events: {},          // { uid, email } set by admin when registering team for a captain
   profileTab: 'mine',        // active sub-tab in Profile page
   _directoryPlayers: [],     // cached player list for directory search
   _profileMatches: [],       // cached matches for match history toggle

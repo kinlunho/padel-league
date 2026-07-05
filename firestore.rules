@@ -65,6 +65,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── /events ──────────────────────────────────────────────────────────────────
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+      match /rounds/{roundId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+    }
+
     // ── /oplrUnlinked ─────────────────────────────────────────────────────────
     // Tracks OPLR for players without linked accounts — admin write only
     match /oplrUnlinked/{pid} {

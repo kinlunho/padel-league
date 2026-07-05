@@ -383,6 +383,7 @@ if (!IS_LOCAL_DEV){
         if(!teamsReady){
           TeamsDB.subscribe(() => { teamsReady = true; tryReady(); });
           MatchesDB.subscribe(() => { tryReady(); });
+          EventsDB.subscribe(() => { renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home'); });
         }
         tryReady();
       });

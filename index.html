@@ -77,6 +77,7 @@
     <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
     <button class="nav-tab" id="nav-profile-tab" onclick="showPage('profile',this);closeMobileNav()" style="display:none;">Profile</button>
     <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
+    <button class="nav-tab" onclick="showPage('events',this);closeMobileNav()">Events</button>
     <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this);closeMobileNav()" style="display:none;">⚙ Admin</button>
   </div>
   <div class="nav-user" id="nav-user">
@@ -179,6 +180,12 @@
     <button class="group-tab profile-tab" onclick="setProfileTab('settings',this)">Settings</button>
   </div>
   <div id="profile-content" style="margin-top:16px;"></div>
+</div>
+
+<!-- ══ EVENTS ══ -->
+<div class="page" id="page-events">
+  <div class="section-title">Events</div>
+  <div id="events-content"></div>
 </div>
 
 <!-- ══ TEAMS ══ -->
@@ -441,6 +448,60 @@
 </div>
 
 <!-- ══ MODALS ══ -->
+
+<!-- Create Event Modal -->
+<div class="modal-overlay" id="createEventModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">Create Event</div>
+    <div class="form-group">
+      <label class="form-label">Event Name</label>
+      <input class="form-input" id="ev-name" placeholder="e.g. Friday Mexicano">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="ev-type">
+          <option value="mexicano">Mexicano</option>
+          <option value="americano">Americano</option>
+          <option value="king">King of the Court</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="ev-date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Courts</label>
+        <input class="form-input" id="ev-courts" type="number" min="1" max="10" value="2">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Rounds</label>
+        <input class="form-input" id="ev-rounds" type="number" min="1" max="20" value="6">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Score Format</label>
+        <select class="form-select" id="ev-score-type">
+          <option value="games">Games to X</option>
+          <option value="timed">Timed (minutes)</option>
+          <option value="sets">Full Sets</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target (games or mins)</label>
+        <input class="form-input" id="ev-score-val" type="number" min="1" value="16">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Players (one per line: Name, email, NPRP)</label>
+      <textarea class="form-input" id="ev-players" rows="8" placeholder="Alex Wong, alex@email.com, 4.5&#10;Brian Lee, brian@email.com, 3.5&#10;(email and NPRP optional)"></textarea>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Minimum 4 players, must be even number. OPPR updates for players with email accounts.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('createEventModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createEvent()">Create Event</button>
+    </div>
+  </div>
+</div>
 
 <!-- Register -->
 <div class="modal-overlay" id="registerModal">
@@ -755,6 +816,10 @@
 -->
 <script src="src/state.js"></script>
 <script src="src/scoring.js"></script>
+  <script src="src/oplr.js"></script>
+  <script src="src/mexicano.js"></script>
+  <script src="src/data/events.js"></script>
+  <script src="src/render/events.js"></script>
   <script src="src/oplr.js"></script>
 <script src="src/router.js"></script>
 <script src="src/roundrobin.js"></script>
