@@ -266,7 +266,7 @@ function openCreateEventModal(){
   openModal('createEventModal');
 }
 
-async function createEvent(){
+async function createPadelEvent(){
   const name    = document.getElementById('ev-name')?.value.trim();
   const type    = document.getElementById('ev-type')?.value;
   const date    = document.getElementById('ev-date')?.value;
