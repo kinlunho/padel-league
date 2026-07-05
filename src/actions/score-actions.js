@@ -3,6 +3,7 @@
 
 function openScoreModal(matchId,isConfirm=false){
   S.editMatchId=matchId;editingKO=null;S.resolvingDispute=false;
+  S.isConfirmMode=isConfirm; // gates attendance UI — only shown on submission
   const m=S.matches[matchId];
   document.getElementById('score-modal-title').textContent=isConfirm?'Confirm Score':'Submit Score';
   document.getElementById('score-match-info').innerHTML=`<strong>${tn(m.t1)}</strong> vs <strong>${tn(m.t2)}</strong><br><span style="color:var(--muted);">${m.date} · ${m.time} · Court ${m.court}</span>`;
@@ -20,6 +21,7 @@ function openScoreModal(matchId,isConfirm=false){
     document.getElementById('sc-s2-t1').value=4;document.getElementById('sc-s2-t2').value=6;
   }
   toggleGamesMode();updateScorePreview();
+  renderAttendanceSection(matchId, isConfirm);
   openModal('scoreModal');
 }
 
@@ -49,6 +51,79 @@ function openDisputeResolve(matchId){
   }
   toggleGamesMode();updateScorePreview();
   openModal('scoreModal');
+}
+
+// ── Attendance section ───────────────────────────────────────────────────────
+// Shows checkboxes for submitter's team players, pre-ticked.
+// Hidden on confirmation mode — opponent confirms score only, not who played.
+// Admin sees both teams' rosters for override purposes.
+
+function renderAttendanceSection(matchId, isConfirm){
+  const section = document.getElementById('sc-attendance');
+  if(!section) return;
+
+  if(isConfirm || S.resolvingDispute || editingKO){
+    section.style.display='none';
+    return;
+  }
+
+  const m = S.matches[matchId];
+  if(!m){ section.style.display='none'; return; }
+
+  // Determine which team's roster to show
+  // Captain sees own team. Admin sees both teams.
+  const myTeamId = S.myTeamId;
+  const teamsToShow = isAdminUser()
+    ? [m.t1, m.t2].filter(Boolean)
+    : myTeamId && (m.t1===myTeamId||m.t2===myTeamId)
+      ? [myTeamId]
+      : [];
+
+  if(!teamsToShow.length){ section.style.display='none'; return; }
+
+  // Build existing selection from match doc (if re-opening)
+  const existing = m.players || [];
+
+  const rows = teamsToShow.map(teamId => {
+    const team = S.teams[teamId];
+    if(!team) return '';
+    const players = team.players || [];
+    if(!players.length) return '';
+    const teamLabel = teamsToShow.length > 1
+      ? `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px;">${team.name}</div>`
+      : '';
+    const checkboxes = players.map((p,i) => {
+      const pid = `${teamId}_p${i}`;
+      const checked = existing.length===0 || existing.includes(pid); // pre-tick all if no existing record
+      return `<label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:3px 0;">
+        <input type="checkbox" id="att-${pid}" value="${pid}" ${checked?'checked':''}
+          style="width:15px;height:15px;accent-color:var(--accent);">
+        ${p.name||'Player '+(i+1)}${i===0?' <span style="font-size:9px;color:var(--accent);margin-left:4px;">cap</span>':''}
+        ${p.nprp?`<span style="font-size:9px;color:var(--brand);">NPRP ${p.nprp}</span>`:''}
+      </label>`;
+    }).join('');
+    return teamLabel + checkboxes;
+  }).join('');
+
+  section.style.display='block';
+  section.innerHTML=`
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">
+        Who played this match?
+        <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px;">Untick absent players</span>
+      </div>
+      ${rows}
+    </div>`;
+}
+
+function getAttendancePlayers(){
+  const section = document.getElementById('sc-attendance');
+  if(!section || section.style.display==='none') return null;
+  const checked = [...section.querySelectorAll('input[type=checkbox]:checked')].map(cb=>cb.value);
+  const all = [...section.querySelectorAll('input[type=checkbox]')].map(cb=>cb.value);
+  // If all ticked return null (no absence recorded — saves storage)
+  if(checked.length===all.length) return null;
+  return checked;
 }
 
 function toggleGamesMode(){
@@ -192,7 +267,10 @@ async function submitScore(){
   if(isAdminUser()&&!wasConfirm){
     const r=calcResult(sd);
     const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
-    await MatchesDB.update(S.editMatchId,{scoreData:sd,status:'confirmed',submittedBy:'admin',notes});
+    const adminAttendance = getAttendancePlayers();
+    const adminFields = {scoreData:sd,status:'confirmed',submittedBy:'admin',notes};
+    if(adminAttendance!==null&&adminAttendance!==undefined) adminFields.players=adminAttendance;
+    await MatchesDB.update(S.editMatchId, adminFields);
     addLog(`Score entered by admin: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,'var(--gold)');
     closeModal('scoreModal');
     showToast('Score entered and confirmed (admin entry)');
@@ -200,12 +278,72 @@ async function submitScore(){
   }
 
   const realSubmitter=wasConfirm?m.submittedBy:(isCaptainUser()?S.myTeamId:m.t1);
-  await MatchesDB.update(S.editMatchId,{scoreData:sd,status:wasConfirm?'confirmed':'pending-confirm',submittedBy:realSubmitter,notes});
+  const attendancePlayers = wasConfirm ? undefined : getAttendancePlayers();
+  const updateFields = {scoreData:sd,status:wasConfirm?'confirmed':'pending-confirm',submittedBy:realSubmitter,notes};
+  if(attendancePlayers !== null && attendancePlayers !== undefined) updateFields.players = attendancePlayers;
+  await MatchesDB.update(S.editMatchId, updateFields);
   const r=calcResult(sd);
   const resultStr=r?r.result==='draw'?'Draw':r.result==='win1'?`${tn(m.t1)} wins`:`${tn(m.t2)} wins`:'';
   addLog(`Score ${wasConfirm?'confirmed':'submitted'}: ${tn(m.t1)} vs ${tn(m.t2)} — ${resultStr}`,wasConfirm?'var(--accent)':'var(--warn)');
   closeModal('scoreModal');
   showToast(wasConfirm?'Score confirmed!':'Score submitted — awaiting opponent confirmation');
+}
+
+// ── Admin attendance override ────────────────────────────────────────────────
+// Opens a compact modal letting admin tick/untick who played on a confirmed match.
+async function openAttendanceOverride(matchId){
+  if(!isAdminUser()){showToast('Admin only',true);return;}
+  const m = S.matches[matchId];
+  if(!m){showToast('Match not found',true);return;}
+
+  const existing = m.players||[];
+  const teams = [m.t1,m.t2].filter(Boolean);
+
+  const rows = teams.map(teamId=>{
+    const team = S.teams[teamId];
+    if(!team) return '';
+    const players = team.players||[];
+    return `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${team.name}</div>
+      ${players.map((p,i)=>{
+        const pid=`${teamId}_p${i}`;
+        const checked=existing.length===0||existing.includes(pid);
+        return `<label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:2px 0;">
+          <input type="checkbox" id="att-ov-${pid}" value="${pid}" ${checked?'checked':''}
+            style="width:15px;height:15px;accent-color:var(--accent);">
+          ${p.name||'Player '+(i+1)}${i===0?' <span style="font-size:9px;color:var(--accent);">cap</span>':''}
+        </label>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+
+  // Use a simple confirm-style dialog via a temporary overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.style.zIndex = '9999';
+  overlay.innerHTML = `<div class="modal">
+    <div class="modal-title">Edit Attendance — Admin</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">${tn(m.t1)} vs ${tn(m.t2)}</div>
+    ${rows}
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAttendanceOverride('${matchId}',this)">Save</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function saveAttendanceOverride(matchId, btn){
+  const overlay = btn.closest('.modal-overlay');
+  const checked = [...overlay.querySelectorAll('input[type=checkbox]:checked')].map(cb=>cb.value);
+  const all = [...overlay.querySelectorAll('input[type=checkbox]')].map(cb=>cb.value);
+  const players = checked.length===all.length ? [] : checked; // empty = all played
+  try {
+    await MatchesDB.update(matchId, { players });
+    addLog(`Attendance updated by admin for match ${matchId}`,'var(--muted)');
+    showToast('Attendance updated');
+    overlay.remove();
+  } catch(err){ showToast('Failed: '+err.message,true); }
 }
 
 // Admin edit of an already-confirmed score. Reuses dispute-resolve path (authoritative,

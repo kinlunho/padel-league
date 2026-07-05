@@ -94,6 +94,21 @@ function renderMatchesList(group){
             <div class="match-teams" style="font-size:12px;color:var(--muted);margin-bottom:2px;"><span>${tn(m.t1)}</span><span class="match-vs">vs</span><span>${tn(m.t2)}</span></div>`
           :`<div class="match-teams"><span>${tn(m.t1)}</span><span class="match-vs">vs</span><span>${tn(m.t2)}</span></div>`}
         ${scoreHtml}
+        ${(()=>{
+          // Show attendance on confirmed matches — who played
+          const players = m.players;
+          if(!players||!players.length) return '';
+          // Resolve player IDs (format: teamId_pN) to names
+          const names = players.map(pid=>{
+            const [teamId,...rest] = pid.split('_p');
+            const idx = parseInt(rest.join('_p'));
+            return S.teams[teamId]?.players?.[idx]?.name||'Player';
+          });
+          return `<div style="font-size:10px;color:var(--muted);margin-top:4px;">
+            👤 ${names.join(', ')}
+            ${isAdminUser()?`<button onclick="openAttendanceOverride('${m.id}')" style="background:none;border:none;color:var(--brand);font-size:10px;cursor:pointer;margin-left:6px;">✎ edit</button>`:''}
+          </div>`;
+        })()}
         <div class="match-meta" style="font-size:10px;color:var(--muted);margin-top:4px;"><span>📅 ${m.date}</span><span>🕖 ${m.time}</span></div>
         ${m.rescheduleRequest?`<div style="font-size:10px;color:var(--brand);margin-top:4px;padding:4px 8px;background:rgba(67,131,250,0.08);border-radius:4px;">⏳ Reschedule pending admin approval → ${m.rescheduleRequest.proposedDate} ${m.rescheduleRequest.proposedTime}</div>`:''}
         <div class="match-actions">${actions}</div>
