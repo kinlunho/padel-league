@@ -55,7 +55,7 @@ function renderNPRPSeedingPanel(){
   return `<div class="card" style="margin-bottom:16px;border:1px solid var(--brand);">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
       <div>
-        <div style="font-weight:700;font-size:14px;color:var(--brand);">🎯 NPRP Division Seeding</div>
+        <div style="font-weight:700;font-size:14px;color:var(--brand);">🎯 OPLR Division Seeding</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">
           Top 2 players (2-player teams) · Top 3 players (3+ players) · ${thresholdNote}
         </div>
@@ -65,14 +65,14 @@ function renderNPRPSeedingPanel(){
         <button class="btn btn-ghost btn-sm" onclick="applyNPRPSeeding(true)">↺ Re-seed All</button>
       </div>
     </div>
-    ${mismatches ? `<div style="font-size:11px;color:var(--warn);margin-bottom:8px;">⚠ ${mismatches} team${mismatches!==1?'s':''} in a division that doesn't match their NPRP average.</div>` : ''}
+    ${mismatches ? `<div style="font-size:11px;color:var(--warn);margin-bottom:8px;">⚠ ${mismatches} team${mismatches!==1?'s':''} in a division that doesn't match their OPLR average.</div>` : ''}
     ${unrated ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">⚬ ${unrated} team${unrated!==1?'s':''} have no OPLR ratings — cannot be auto-seeded.</div>` : ''}
     <div style="overflow-x:auto;">
       <table style="width:100%;font-size:11px;">
         <thead>
           <tr style="color:var(--muted);text-align:left;">
             <th style="padding:4px 8px;">Team</th>
-            <th style="padding:4px 8px;">Top players (NPRP)</th>
+            <th style="padding:4px 8px;">Top players (OPLR)</th>
             <th style="padding:4px 8px;">Seed Avg</th>
             <th style="padding:4px 8px;">Suggested</th>
             <th style="padding:4px 8px;">Current</th>
@@ -190,7 +190,7 @@ function renderTeamsList(group){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
         <div>
           <div style="font-weight:700;font-size:15px;">${t.name}</div>
-          ${mismatch?`<div style="font-size:10px;color:var(--red);">⚠ NPRP suggests ${suggested}</div>`:''}
+          ${mismatch?`<div style="font-size:10px;color:var(--red);">⚠ OPLR suggests ${suggested}</div>`:''}
           ${t.captainEmail?`<div style="font-size:10px;color:var(--muted);">Registered by: ${t.captainEmail}</div>`:''}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">

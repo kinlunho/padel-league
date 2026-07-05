@@ -146,7 +146,7 @@ function filterAdminTeams(group, btn){
           ${p.phone?`· ${p.phone}`:''}${nprp}</div>`;
       }).join('')}</div>
       ${(()=>{const r=(t.players||[]).map(p=>parseFloat(p.nprp)).filter(n=>!isNaN(n));
-        return r.length?`<div style="font-size:10px;color:var(--brand);margin-top:6px;">avg NPRP ${(r.reduce((a,b)=>a+b,0)/r.length).toFixed(1)}</div>`:'';}
+        return r.length?`<div style="font-size:10px;color:var(--brand);margin-top:6px;">avg OPLR ${(r.reduce((a,b)=>a+b,0)/r.length).toFixed(1)}</div>`:'';}
       )()}
     </div>`).join('')}</div>`;
 }
@@ -426,7 +426,7 @@ function renderAdminSeason(){
     <div class="card" style="margin-bottom:12px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:4px;">🏅 Division Manager</div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">
-        Add, remove, or rename divisions. Set NPRP ranges to drive auto-seeding.
+        Add, remove, or rename divisions. Set OPLR ranges to drive auto-seeding.
         Divisions are ordered highest tier first — this order controls seeding priority and display order throughout the app.
         Changes take effect immediately for all users.
       </div>
