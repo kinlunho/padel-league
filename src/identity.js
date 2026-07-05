@@ -383,13 +383,17 @@ if (!IS_LOCAL_DEV){
         if(!teamsReady){
           TeamsDB.subscribe(() => { teamsReady = true; tryReady(); });
           MatchesDB.subscribe(() => { tryReady(); });
-          EventsDB.subscribe(() => { renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home'); });
         }
         tryReady();
       });
       await resolveIdentity(firebaseUser);
       showApp();
       setNavUser(firebaseUser);
+      // EventsDB is not part of app-ready gate — subscribe separately after boot
+      EventsDB.subscribe(() => {
+        const active = document.querySelector('.page.active')?.id.replace('page-','');
+        if(active === 'events') renderEventsPage();
+      });
       applyRoleGating();
     } else {
       ConfigDB.stop();
