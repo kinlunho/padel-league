@@ -648,7 +648,8 @@ async function adminCreateUser(){
   const teamId = document.getElementById('new-user-team')?.value || null;
   const teamName = teamId && S.teams[teamId] ? S.teams[teamId].name : null;
   if(!email||!pw){ showToast('Email and password required',true); return; }
-  if(role==='captain'&&!teamId){ showToast('Select a team for this captain',true); return; }
+  if(role==='captain'&&!teamId){ showToast('Captains must be linked to a team',true); return; }
+  // Viewers and admins can optionally have a team for profile/stats purposes
   try {
     const createUser = firebase.app().functions('asia-east2').httpsCallable('createUser');
     await createUser({ email, password:pw, role, teamId:teamId||null, teamName });
@@ -673,14 +674,23 @@ function openEditUserModal(uid, email, role, teamId, isSelf=false){
   openModal('editUserModal');
 }
 function toggleEditUserTeam(){
+  // Team dropdown shown for all roles — viewers/admins can be linked to a team for stats
+  // Label changes based on role to set correct expectations
   const role = document.getElementById('edit-user-role').value;
-  document.getElementById('edit-user-team-wrap').style.display = role==='captain' ? '' : 'none';
+  document.getElementById('edit-user-team-wrap').style.display = '';
+  const label = document.getElementById('edit-user-team-label');
+  if(label){
+    label.textContent = role==='captain'
+      ? 'Linked Team (required for captain)'
+      : 'Linked Team (optional — for profile stats)';
+  }
 }
 async function saveUserRole(){
   const role   = document.getElementById('edit-user-role').value;
   const teamId = document.getElementById('edit-user-team')?.value || null;
   const teamName = teamId && S.teams[teamId] ? S.teams[teamId].name : null;
-  if(role==='captain'&&!teamId){ showToast('Select a team for this captain',true); return; }
+  if(role==='captain'&&!teamId){ showToast('Captains must be linked to a team',true); return; }
+  // Viewers and admins can optionally have a team for profile/stats purposes
   try {
     const setRole = firebase.app().functions('asia-east2').httpsCallable('setUserRole');
     await setRole({ uid: S.editUserId, role, teamId: teamId||null, teamName });
