@@ -40,7 +40,7 @@ function generateKOPoolFixtures(teamIds,pKey,season){
         id:`ko_${pKey}_${a}_vs_${b}`,
         t1:a,t2:b,group:pKey,koPhase:pKey,season,
         status:'upcoming',scoreData:null,submittedBy:null,
-        court:null,koRound:null,courtOrder:null,isKO:true
+        court:null,koRound:null,courtOrder:null,isKO:true,players:[]
       });
     }
   }

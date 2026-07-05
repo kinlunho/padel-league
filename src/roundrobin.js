@@ -35,11 +35,14 @@ async function generateFixtures(group){
     pairs.forEach(([t1,t2])=>{
       const [a,b]=[t1,t2].sort();
       const id=`${a}_vs_${b}_r${ri+1}`;
-      allMatches[id]={id,group,t1,t2,date:null,time:null,court:null,round:ri+1,season:ACTIVE_SEASON,status:'unclaimed',scoreData:null,submittedBy:null,notes:''};
+      allMatches[id]={id,group,t1,t2,date:null,time:null,court:null,round:ri+1,season:ACTIVE_SEASON,status:'unclaimed',scoreData:null,submittedBy:null,notes:'',players:[]};
     });
   });
   try {
     await MatchesDB.seedAll(allMatches);
+    // Capture NPRP snapshot for all players in this division at fixture generation time.
+    // This is the authoritative season-start rating used for trend charts.
+    await captureNPRPSnapshot(group);
     addLog(`Fixtures generated for ${group}: ${Object.keys(allMatches).length} matches across ${rounds.length} rounds`,'var(--brand)');
     showToast(`${Object.keys(allMatches).length} fixtures generated across ${rounds.length} rounds`);
   } catch(err){

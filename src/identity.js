@@ -59,6 +59,13 @@ async function resolveIdentity(firebaseUser){
 
   S.userEmail = firebaseUser.email;
 
+  // Ensure player profile doc exists — creates if first sign-in, no-op otherwise
+  PlayersDB.ensureProfile(
+    firebaseUser.uid,
+    firebaseUser.email,
+    firebaseUser.displayName
+  ).catch(e => console.warn('ensureProfile:', e.message));
+
   // Force-refresh token to get latest role claim
   const tokenResult = await firebaseUser.getIdTokenResult(true);
   const role = tokenResult.claims.role || 'viewer';

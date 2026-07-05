@@ -57,6 +57,14 @@ service cloud.firestore {
       allow read, write: if isAdmin() || request.auth.uid == uid;
     }
 
+    // ── /players ─────────────────────────────────────────────────────────────
+    match /players/{uid} {
+      allow read: if isSignedIn();  // anyone logged in can view any profile
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isAdmin() || request.auth.uid == uid;
+      allow delete: if isAdmin();
+    }
+
     // ── /config ───────────────────────────────────────────────────────────────
     match /config/{docId} {
       allow read: if isSignedIn();
