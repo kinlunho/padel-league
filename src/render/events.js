@@ -174,7 +174,11 @@ function renderEventDetail(container){
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">vs</div>
           <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${m.teamBNames}</div>
           ${m.status==='confirmed'
-            ?`<div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);">${m.scoreA} – ${m.scoreB}</div>`
+            ?`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);">${m.scoreA} – ${m.scoreB}</div>
+                ${isAdminUser()?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;"
+                  onclick="openEventScoreEdit('${e.id}',${activeRound.roundNumber},'${m.matchId}',${m.scoreA},${m.scoreB},${e.scoreFormat?.target||0})">✎ Edit</button>`:''}
+              </div>`
             :isAdminUser()
               ?`<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
                   ${(()=>{
@@ -230,6 +234,61 @@ function autoFillScore(matchId, target, inputEl, side){
   const otherId = side==='A' ? `sB_${matchId}` : `sA_${matchId}`;
   const otherEl = document.getElementById(otherId);
   if(otherEl) otherEl.value = complement;
+}
+
+function openEventScoreEdit(eventId, roundNumber, matchId, currentA, currentB, target){
+  // Inline edit — replace the confirmed score display with editable inputs
+  // Find the match card and inject edit UI
+  const btn = event?.target;
+  const card = btn?.closest('.card');
+  if(!card) return;
+
+  const scoreDiv = card.querySelector('[style*="Space Mono"]')?.parentElement;
+  if(!scoreDiv) return;
+
+  const autoA = target ? `oninput="autoFillScore('edit_${matchId}',${target},this,'A')"` : '';
+  const autoB = target ? `oninput="autoFillScore('edit_${matchId}',${target},this,'B')"` : '';
+
+  scoreDiv.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${target?`<div style="font-size:9px;color:var(--muted);">of ${target}</div>`:''}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <input type="number" min="0" max="${target||999}" id="sA_edit_${matchId}"
+          value="${currentA}"
+          style="width:52px;padding:6px;border-radius:4px;border:1px solid var(--brand);
+          background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:16px;font-weight:700;"
+          ${autoA}>
+        <span style="color:var(--muted);font-weight:700;">–</span>
+        <input type="number" min="0" max="${target||999}" id="sB_edit_${matchId}"
+          value="${currentB}"
+          style="width:52px;padding:6px;border-radius:4px;border:1px solid var(--brand);
+          background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:16px;font-weight:700;"
+          ${autoB}>
+        <button class="btn btn-primary btn-sm"
+          onclick="saveEventScoreEdit('${eventId}',${roundNumber},'${matchId}')">Save</button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="renderEventsPage()">Cancel</button>
+      </div>
+    </div>`;
+
+  // Focus first input
+  document.getElementById(`sA_edit_${matchId}`)?.focus();
+}
+
+async function saveEventScoreEdit(eventId, roundNumber, matchId){
+  const scoreA = parseInt(document.getElementById(`sA_edit_${matchId}`)?.value);
+  const scoreB = parseInt(document.getElementById(`sB_edit_${matchId}`)?.value);
+  if(isNaN(scoreA)||isNaN(scoreB)){ showToast('Enter both scores',true); return; }
+  if(scoreA<0||scoreB<0){ showToast('Scores cannot be negative',true); return; }
+
+  try {
+    await mexicanoEnterScore(eventId, roundNumber, matchId, scoreA, scoreB);
+    addLog(`Event score corrected by admin: match ${matchId} → ${scoreA}–${scoreB}`,'var(--gold)');
+    S_eventRounds = await EventsDB.getRounds(eventId);
+    S_eventDetail = S.events[eventId];
+    showToast('Score updated');
+    renderEventsPage();
+  } catch(err){ showToast('Failed: '+err.message, true); }
 }
 
 async function submitMexicanoScore(eventId, roundNumber, matchId){
