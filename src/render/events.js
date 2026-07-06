@@ -638,6 +638,17 @@ function toggleAmericanoVariant(){
   if(wrap) wrap.style.display = type==='americano' ? '' : 'none';
   const kingWrap = document.getElementById('ev-king-wrap');
   if(kingWrap) kingWrap.style.display = type==='king' ? '' : 'none';
+  // Show pairing section for King
+  updateKingPairingVisibility();
+}
+
+function updateKingPairingVisibility(){
+  const type = document.getElementById('ev-type')?.value;
+  const pairMode = document.getElementById('ev-pair-mode')?.value;
+  const pairingWrap = document.getElementById('ev-king-pairing-wrap');
+  if(pairingWrap){
+    pairingWrap.style.display = (type==='king' && pairMode==='fixed') ? '' : 'none';
+  }
 }
 
 // ── King of the Court pair definition ────────────────────────────────────────
@@ -650,7 +661,7 @@ let _kingSelected = null; // uid of first selected player
 function openKingPairingUI(){
   // Show pairing UI after player selection
   const modal = document.getElementById('createEventModal');
-  const pairingDiv = document.getElementById('ev-king-pairing');
+  const pairingDiv = document.getElementById('ev-king-pairing-wrap');
   if(!pairingDiv) return;
 
   const players = _evSelectedPlayers;
@@ -750,6 +761,12 @@ async function createPadelEvent(){
   if(players.length<4){showToast('Need at least 4 players',true);return;}
   if(players.length%2!==0){showToast('Need an even number of players — add or remove one',true);return;}
 
+  // Declare King-specific vars early to avoid temporal dead zone
+  const queueVariant = document.getElementById('ev-queue-variant')?.value||'winners-stay';
+  const pairMode     = document.getElementById('ev-pair-mode')?.value||'fixed';
+  const winCap       = parseInt(document.getElementById('ev-win-cap')?.value||'3');
+  const hardCap      = parseInt(document.getElementById('ev-hard-cap')?.value||'20');
+
   // For King fixed pairs — validate all players are paired
   const isKingFixed = type==='king' && pairMode==='fixed';
   if(isKingFixed){
@@ -771,11 +788,7 @@ async function createPadelEvent(){
     : sfType==='timed'
       ? {type:'timed',minutes:sfVal}
       : {type:'sets',sets:2};
-  const variant      = document.getElementById('ev-variant')?.value||'roundrobin';
-  const queueVariant = document.getElementById('ev-queue-variant')?.value||'winners-stay';
-  const pairMode     = document.getElementById('ev-pair-mode')?.value||'fixed';
-  const winCap       = parseInt(document.getElementById('ev-win-cap')?.value||'3');
-  const hardCap      = parseInt(document.getElementById('ev-hard-cap')?.value||'20');
+  const variant = document.getElementById('ev-variant')?.value||'roundrobin';
 
   const eventId = await EventsDB.create({
     name, type, date, courts, totalRounds:rounds,
@@ -848,6 +861,12 @@ async function saveEditEvent(eventId){
   const players = _evSelectedPlayers.map(p=>({...p, withdrawn:false}));
   if(players.length<4){showToast('Need at least 4 players',true);return;}
   if(players.length%2!==0){showToast('Need an even number of players — add or remove one',true);return;}
+
+  // Declare King-specific vars early to avoid temporal dead zone
+  const queueVariant = document.getElementById('ev-queue-variant')?.value||'winners-stay';
+  const pairMode     = document.getElementById('ev-pair-mode')?.value||'fixed';
+  const winCap       = parseInt(document.getElementById('ev-win-cap')?.value||'3');
+  const hardCap      = parseInt(document.getElementById('ev-hard-cap')?.value||'20');
 
   // For King fixed pairs — validate all players are paired
   const isKingFixed = type==='king' && pairMode==='fixed';

@@ -473,41 +473,7 @@
           <option value="fixed">Fixed Rotation (social, predefined schedule)</option>
         </select>
       </div>
-      <div id="ev-king-wrap" style="display:none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div class="form-group">
-            <label class="form-label">Queue Variant</label>
-            <select class="form-select" id="ev-queue-variant">
-              <option value="winners-stay">Winners Stay (3-game cap)</option>
-              <option value="rotational">Rotational Shuffle</option>
-              <option value="waiting-list">Waiting List</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Pair Mode</label>
-            <select class="form-select" id="ev-pair-mode">
-              <option value="fixed">Fixed Pairs (admin sets)</option>
-              <option value="random">Random Pairs (shuffled at start)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Consecutive Win Cap</label>
-            <input class="form-input" id="ev-win-cap" type="number" min="1" max="10" value="3">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Hard Score Cap</label>
-            <input class="form-input" id="ev-hard-cap" type="number" min="16" max="50" value="20">
-          </div>
-        </div>
-        <!-- Pair definition — shown when Fixed Pairs selected -->
-        <div id="ev-king-pairing" style="display:none;margin-top:12px;">
-          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
-            letter-spacing:1px;margin-bottom:8px;">Define Pairs</div>
-          <div id="ev-king-pairing-players"></div>
-        </div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:8px;"
-          onclick="openKingPairingUI()">👥 Define Pairs</button>
-      </div>
+
       <div class="form-group">
         <label class="form-label">Date</label>
         <input class="form-input" id="ev-date" type="date">
@@ -531,6 +497,34 @@
       <div class="form-group">
         <label class="form-label">Target (games or mins)</label>
         <input class="form-input" id="ev-score-val" type="number" min="1" value="16">
+      </div>
+    </div>
+    <!-- King of the Court settings — outside grid, full width -->
+    <div id="ev-king-wrap" style="display:none;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="form-group">
+          <label class="form-label">Queue Variant</label>
+          <select class="form-select" id="ev-queue-variant">
+            <option value="winners-stay">Winners Stay (3-game cap)</option>
+            <option value="rotational">Rotational Shuffle</option>
+            <option value="waiting-list">Waiting List</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pair Mode</label>
+          <select class="form-select" id="ev-pair-mode">
+            <option value="fixed">Fixed Pairs (admin sets)</option>
+            <option value="random">Random Pairs (shuffled at start)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Consecutive Win Cap</label>
+          <input class="form-input" id="ev-win-cap" type="number" min="1" max="10" value="3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hard Score Cap</label>
+          <input class="form-input" id="ev-hard-cap" type="number" min="16" max="50" value="20">
+        </div>
       </div>
     </div>
     <div class="form-group">
@@ -565,6 +559,14 @@
         </div>
       </details>
       <div style="font-size:10px;color:var(--muted);margin-top:6px;">OPPR updates automatically for directory players after each match.</div>
+    </div>
+    <!-- King pair definition — shown after players selected -->
+    <div id="ev-king-pairing-wrap" style="display:none;margin-top:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:6px;">Define Pairs</div>
+      <div id="ev-king-pairing-players"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;"
+        onclick="openKingPairingUI()">👥 Define Pairs</button>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('createEventModal')">Cancel</button>
