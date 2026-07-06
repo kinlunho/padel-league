@@ -557,7 +557,7 @@ async function saveEditEvent(eventId){
 
 let _leaderboardUnsub = null;
 
-function openLeaderboard(eventId){
+async function openLeaderboard(eventId){
   const overlay = document.createElement('div');
   overlay.id = 'leaderboard-overlay';
   overlay.style.cssText = `
@@ -568,13 +568,17 @@ function openLeaderboard(eventId){
     overflow:hidden;`;
 
   document.body.appendChild(overlay);
+
+  // Load all rounds for history + next round panel
+  S_eventRounds = await EventsDB.getRounds(eventId);
   renderLeaderboard(eventId, overlay);
 
-  // Real-time subscription — event doc updates trigger re-render
+  // Real-time subscription — event doc updates trigger re-render + round reload
   _leaderboardUnsub = db.collection('events').doc(eventId)
-    .onSnapshot(snap=>{
+    .onSnapshot(async snap=>{
       if(!snap.exists) return;
       S.events[eventId] = { id:snap.id, ...snap.data() };
+      S_eventRounds = await EventsDB.getRounds(eventId);
       renderLeaderboard(eventId, overlay);
     });
 }
@@ -589,86 +593,207 @@ function renderLeaderboard(eventId, overlay){
   if(!e){ overlay.innerHTML=''; return; }
 
   const standings = e.standings
-    ? Object.values(e.standings)
-        .filter(s=>!s.withdrawn)
+    ? Object.values(e.standings).filter(s=>!s.withdrawn)
         .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
     : [];
 
   const formatLabel = {mexicano:'MEXICANO',americano:'AMERICANO',king:'KING OF THE COURT'};
   const medals = ['🥇','🥈','🥉'];
 
+  // Current round matches (for courts panel)
+  const currentRound = S_eventRounds?.find(r=>r.roundNumber===e.currentRound);
+  const nextRound    = S_eventRounds?.find(r=>r.roundNumber===(e.currentRound||0)+1);
+
+  // Past confirmed matches across all rounds (for history panel)
+  const history = (S_eventRounds||[]).flatMap(r=>
+    (r.matches||[]).filter(m=>!m.isBye&&m.status==='confirmed')
+      .map(m=>({...m, roundNumber:r.roundNumber}))
+  ).reverse(); // most recent first
+
+  const courtsHTML = (round, label) => {
+    if(!round) return `<div style="color:rgba(255,255,255,0.3);font-size:13px;padding:12px 0;">${label}</div>`;
+    const active = (round.matches||[]).filter(m=>!m.isBye);
+    const bye    = (round.matches||[]).filter(m=>m.isBye);
+    return `
+      ${active.map(m=>`
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+          border-radius:10px;padding:16px;margin-bottom:10px;">
+          <div style="font-size:10px;color:rgba(245,200,66,0.7);letter-spacing:2px;margin-bottom:8px;">
+            COURT ${m.court||'?'}${m.status==='confirmed'?' · DONE':''}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="flex:1;">
+              ${m.teamANames.split(' & ').map(n=>`
+                <div style="font-size:${n.length>12?'14px':'16px'};font-weight:700;color:#fff;
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</div>`).join('')}
+            </div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.3);font-weight:700;flex-shrink:0;">VS</div>
+            <div style="flex:1;text-align:right;">
+              ${m.teamBNames.split(' & ').map(n=>`
+                <div style="font-size:${n.length>12?'14px':'16px'};font-weight:700;color:#fff;
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;">${n}</div>`).join('')}
+            </div>
+          </div>
+          ${m.status==='confirmed'
+            ?`<div style="text-align:center;font-size:20px;font-weight:700;color:#4ade80;margin-top:8px;">
+                ${m.scoreA} – ${m.scoreB}
+              </div>`
+            :''}
+        </div>`).join('')}
+      ${bye.map(m=>`
+        <div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);
+          border-radius:10px;padding:12px;margin-bottom:10px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:6px;">SITTING OUT</div>
+          <div style="font-size:15px;font-weight:600;color:rgba(255,255,255,0.5);">${m.byeNames||''}</div>
+        </div>`).join('')}`;
+  };
+
+  const historyHTML = !history.length
+    ? `<div style="color:rgba(255,255,255,0.3);font-size:13px;padding:12px 0;">No completed matches yet</div>`
+    : history.map(m=>{
+        const aWon = m.scoreA > m.scoreB;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;
+          border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:9px;color:rgba(255,255,255,0.3);width:20px;text-align:center;">R${m.roundNumber}</div>
+          <div style="flex:1;font-size:11px;color:${aWon?'#fff':'rgba(255,255,255,0.4)'};">${m.teamANames}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+            color:#F5C842;flex-shrink:0;">${m.scoreA}–${m.scoreB}</div>
+          <div style="flex:1;text-align:right;font-size:11px;color:${!aWon?'#fff':'rgba(255,255,255,0.4)'};">${m.teamBNames}</div>
+        </div>`;
+      }).join('');
+
   overlay.innerHTML = `
+    <style>
+      @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+      .lb-tab{padding:8px 16px;border:none;background:transparent;color:rgba(255,255,255,0.4);
+        font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;border-bottom:2px solid transparent;
+        letter-spacing:1px;transition:all 0.2s;}
+      .lb-tab.active{color:#F5C842;border-bottom-color:#F5C842;}
+      .lb-panel{display:none;flex:1;overflow-y:auto;padding:20px 24px;}
+      .lb-panel.active{display:block;}
+      @media(min-width:900px){
+        #lb-desktop{display:grid!important;}
+        #lb-mobile-tabs{display:none!important;}
+        .lb-panel{display:block!important;}
+      }
+    </style>
+
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:center;
-                padding:20px 32px;border-bottom:2px solid rgba(245,200,66,0.3);">
+      padding:16px 24px;border-bottom:2px solid rgba(245,200,66,0.3);flex-shrink:0;">
       <div>
-        <div style="font-size:11px;color:rgba(245,200,66,0.7);letter-spacing:3px;margin-bottom:4px;">
+        <div style="font-size:10px;color:rgba(245,200,66,0.7);letter-spacing:3px;margin-bottom:2px;">
           ${formatLabel[e.type]||'EVENT'} · ROUND ${e.currentRound||0}${e.totalRounds?' OF '+e.totalRounds:''}
         </div>
-        <div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:1px;">${e.name}</div>
+        <div style="font-size:22px;font-weight:700;color:#fff;">${e.name}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;">
-        <div style="text-align:right;">
-          <div style="font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:2px;">LIVE</div>
-          <div style="width:8px;height:8px;border-radius:50%;background:#4ade80;
-                      display:inline-block;animation:pulse 1.5s infinite;"></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 1.5s infinite;"></div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:1px;">LIVE</span>
         </div>
         <button onclick="closeLeaderboard()" style="background:rgba(255,255,255,0.1);border:none;
-          color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;">✕ Close</button>
+          color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;">✕ Close</button>
       </div>
     </div>
 
-    <!-- Standings grid -->
-    <div style="flex:1;overflow-y:auto;padding:24px 32px;">
-      ${!standings.length
-        ? `<div style="text-align:center;color:rgba(255,255,255,0.3);font-size:18px;margin-top:80px;">
-             No results yet — event in progress
-           </div>`
-        : `<div style="display:grid;gap:10px;">
-            <!-- Column headers -->
-            <div style="display:grid;grid-template-columns:48px 1fr 80px 70px 70px 60px;
-                        gap:12px;padding:0 16px;font-size:10px;color:rgba(255,255,255,0.3);
-                        letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">
-              <div>#</div><div>Player</div><div style="text-align:center;">Points</div>
-              <div style="text-align:center;">GW</div><div style="text-align:center;">GL</div>
-              <div style="text-align:center;">Played</div>
-            </div>
-            ${standings.map((s,i)=>{
-              const isTop3 = i < 3;
-              const bgColor = i===0?'rgba(245,200,66,0.12)':i===1?'rgba(192,192,192,0.08)':i===2?'rgba(205,127,50,0.08)':'rgba(255,255,255,0.04)';
-              const borderColor = i===0?'rgba(245,200,66,0.4)':i===1?'rgba(192,192,192,0.2)':i===2?'rgba(205,127,50,0.2)':'transparent';
-              const rankColor = i===0?'#F5C842':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(255,255,255,0.4)';
-              return `<div style="display:grid;grid-template-columns:48px 1fr 80px 70px 70px 60px;
-                        gap:12px;align-items:center;padding:14px 16px;
-                        background:${bgColor};border:1px solid ${borderColor};
-                        border-radius:8px;transition:all 0.3s;">
-                <div style="font-size:${isTop3?'22px':'16px'};color:${rankColor};font-weight:700;">
-                  ${medals[i]||i+1}
-                </div>
-                <div>
-                  <div style="color:#fff;font-size:${isTop3?'18px':'15px'};font-weight:${isTop3?'700':'400'};
-                               letter-spacing:0.5px;">${s.name}</div>
-                  ${s.nprp?`<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">NPRP ${s.nprp}</div>`:''}
-                </div>
-                <div style="text-align:center;font-size:${isTop3?'24px':'18px'};font-weight:700;
-                             color:${rankColor};">${s.points}</div>
-                <div style="text-align:center;color:#4ade80;font-size:14px;">${s.gamesWon}</div>
-                <div style="text-align:center;color:#f87171;font-size:14px;">${s.gamesLost}</div>
-                <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:13px;">${s.played}</div>
-              </div>`;
-            }).join('')}
-          </div>`
-      }
+    <!-- Mobile tabs -->
+    <div id="lb-mobile-tabs" style="display:flex;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;">
+      <button class="lb-tab active" onclick="lbShowTab('standings',this)">🏆 Standings</button>
+      <button class="lb-tab" onclick="lbShowTab('courts',this)">🎾 Courts</button>
+      <button class="lb-tab" onclick="lbShowTab('next',this)">⏭ Next</button>
+      <button class="lb-tab" onclick="lbShowTab('history',this)">📋 History</button>
     </div>
+
+    <!-- Desktop: 3-column split | Mobile: tabbed panels -->
+    <div id="lb-desktop" style="display:none;flex:1;overflow:hidden;
+      grid-template-columns:1fr 1fr 1fr;gap:0;">
+
+      <!-- Standings -->
+      <div style="overflow-y:auto;padding:20px;border-right:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">🏆 STANDINGS</div>
+        ${renderLbStandings(standings, medals)}
+      </div>
+
+      <!-- Current courts -->
+      <div style="overflow-y:auto;padding:20px;border-right:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">
+          🎾 ROUND ${e.currentRound} — ON COURT
+        </div>
+        ${courtsHTML(currentRound, 'No active round')}
+        ${nextRound?`
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin:16px 0 12px;">
+            ⏭ ROUND ${(e.currentRound||0)+1} — UP NEXT
+          </div>
+          ${courtsHTML(nextRound, '')}`:''
+        }
+      </div>
+
+      <!-- History -->
+      <div style="overflow-y:auto;padding:20px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">📋 RESULTS</div>
+        ${historyHTML}
+      </div>
+    </div>
+
+    <!-- Mobile panels -->
+    <div id="lb-panel-standings" class="lb-panel active">${renderLbStandings(standings, medals)}</div>
+    <div id="lb-panel-courts" class="lb-panel">
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">ROUND ${e.currentRound} — ON COURT</div>
+      ${courtsHTML(currentRound,'No active round')}
+    </div>
+    <div id="lb-panel-next" class="lb-panel">
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">ROUND ${(e.currentRound||0)+1} — UP NEXT</div>
+      ${nextRound?courtsHTML(nextRound,''):'<div style="color:rgba(255,255,255,0.3);font-size:13px;">No upcoming round yet</div>'}
+    </div>
+    <div id="lb-panel-history" class="lb-panel">${historyHTML}</div>
 
     <!-- Footer -->
-    <div style="padding:12px 32px;border-top:1px solid rgba(255,255,255,0.08);
-                display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:11px;color:rgba(255,255,255,0.3);">GO PARK Sports × The One · ${e.date||''}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.3);">padel-league-hk.web.app</div>
-    </div>
+    <div style="padding:8px 24px;border-top:1px solid rgba(255,255,255,0.06);
+      display:flex;justify-content:space-between;flex-shrink:0;">
+      <div style="font-size:10px;color:rgba(255,255,255,0.25);">GO PARK Sports × The One · ${e.date||''}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.25);">padel-league-hk.web.app</div>
+    </div>`;
 
-    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}</style>`;
+  // Activate desktop layout if wide enough
+  const isDesktop = window.innerWidth >= 900;
+  const desktopEl = overlay.querySelector('#lb-desktop');
+  const mobileEl  = overlay.querySelector('#lb-mobile-tabs');
+  if(desktopEl&&mobileEl){
+    desktopEl.style.display = isDesktop?'grid':'none';
+    mobileEl.style.display  = isDesktop?'none':'flex';
+    overlay.querySelectorAll('.lb-panel').forEach(p=>p.style.display=isDesktop?'none':'');
+  }
+}
+
+function renderLbStandings(standings, medals){
+  if(!standings.length) return `<div style="color:rgba(255,255,255,0.3);font-size:13px;">No results yet</div>`;
+  return standings.map((s,i)=>{
+    const isTop3 = i<3;
+    const bg = i===0?'rgba(245,200,66,0.1)':i===1?'rgba(192,192,192,0.06)':i===2?'rgba(205,127,50,0.06)':'rgba(255,255,255,0.03)';
+    const bc = i===0?'rgba(245,200,66,0.3)':i===1?'rgba(192,192,192,0.15)':i===2?'rgba(205,127,50,0.15)':'transparent';
+    const rc = i===0?'#F5C842':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(255,255,255,0.35)';
+    return `<div style="display:grid;grid-template-columns:36px 1fr 56px 44px 44px;gap:8px;
+      align-items:center;padding:10px 12px;background:${bg};border:1px solid ${bc};
+      border-radius:8px;margin-bottom:6px;">
+      <div style="font-size:${isTop3?'18px':'13px'};color:${rc};font-weight:700;">${medals[i]||i+1}</div>
+      <div>
+        <div style="color:#fff;font-size:${isTop3?'14px':'12px'};font-weight:${isTop3?'700':'400'};">${s.name}</div>
+        ${s.nprp?`<div style="font-size:9px;color:rgba(255,255,255,0.3);">NPRP ${s.nprp}</div>`:''}
+      </div>
+      <div style="text-align:center;font-size:${isTop3?'18px':'14px'};font-weight:700;color:${rc};">${s.points}</div>
+      <div style="text-align:center;color:#4ade80;font-size:12px;">${s.gamesWon}</div>
+      <div style="text-align:center;color:#f87171;font-size:12px;">${s.gamesLost}</div>
+    </div>`;
+  }).join('');
+}
+
+function lbShowTab(tab, btn){
+  document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.lb-panel').forEach(p=>p.classList.remove('active'));
+  const panel = document.getElementById(`lb-panel-${tab}`);
+  if(panel) panel.classList.add('active');
 }
 
 function setKOTab(tab,el){
