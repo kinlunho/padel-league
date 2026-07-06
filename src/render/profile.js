@@ -628,18 +628,18 @@ async function viewPlayerProfile(uid){
       </div>
     </div>
 
-    ${(()=>{
-      const oh = profile.oplrHistory||[];
-      if(!oh.length) return '';
-      const chart = oh.length>=2 ? renderOPLRChart(oh) : '';
-      return `<div class="card" style="margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <div style="font-weight:700;font-size:13px;">📈 OnePadel Player Rating</div>
-          ${profile.currentOPLR?`<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--brand);">${profile.currentOPLR.toFixed(2)}</div>`:''}
-        </div>
-        ${chart||`<div style="color:var(--muted);font-size:12px;">Rating: ${oh[oh.length-1].oplr.toFixed(2)} after ${oh.length} match${oh.length!==1?'es':''}.</div>`}
-      </div>`;
-    })()}
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:13px;">📈 OnePadel Player Rating</div>
+        ${profile.currentOPLR?`<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--brand);">${profile.currentOPLR.toFixed(2)}</div>`:''}
+      </div>
+      ${(()=>{
+        const oh = profile.oplrHistory||[];
+        if(oh.length>=2) return renderOPLRChart(oh)||'';
+        if(oh.length===1) return '<div style="color:var(--muted);font-size:12px;">Rating: '+oh[0].oplr.toFixed(2)+' after 1 match.</div>';
+        return '<div style="color:var(--muted);font-size:12px;font-style:italic;">No matches yet — OPPR starts from NPRP after first confirmed match.</div>';
+      })()}
+    </div>
 
     <div class="card" style="margin-bottom:16px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:12px;">📊 Season Stats</div>
