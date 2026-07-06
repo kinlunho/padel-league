@@ -595,9 +595,19 @@ async function viewPlayerProfile(uid){
         (m.t1===myTeamId||m.t2===myTeamId)&&m.status==='confirmed'
       ).sort((a,b)=>(b.date||'').localeCompare(a.date||''))
     : [];
-  const wins = allMatches.filter(m=>{const r=calcResult(m.scoreData);return r&&((r.result==='win1'&&m.t1===myTeamId)||(r.result==='win2'&&m.t2===myTeamId));}).length;
-  const losses = allMatches.length - wins;
-  const winRate = allMatches.length?Math.round((wins/allMatches.length)*100):0;
+
+  // Include event games from OPPR history
+  const vOplrHistory = profile.oplrHistory || [];
+  const vEventGames  = vOplrHistory.filter(h => h.format && h.format !== 'league');
+  const vEventWins   = vEventGames.filter(h => h.opponent==='win').length;
+  const vEventLosses = vEventGames.filter(h => h.opponent==='loss').length;
+
+  const leagueWinsV  = allMatches.filter(m=>{const r=calcResult(m.scoreData);return r&&((r.result==='win1'&&m.t1===myTeamId)||(r.result==='win2'&&m.t2===myTeamId));}).length;
+  const leagueLossV  = allMatches.length - leagueWinsV;
+  const wins         = leagueWinsV + vEventWins;
+  const losses       = leagueLossV + vEventLosses;
+  const totalPlayed  = allMatches.length + vEventGames.length;
+  const winRate      = totalPlayed ? Math.round((wins/totalPlayed)*100) : 0;
 
   container.innerHTML=`
     <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="setProfileTab('directory',document.querySelector('.profile-tab:nth-child(2)'))">← Back to Directory</button>
@@ -633,13 +643,14 @@ async function viewPlayerProfile(uid){
 
     <div class="card" style="margin-bottom:16px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:12px;">📊 Season Stats</div>
-      ${allMatches.length
+      ${totalPlayed
         ?`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;">
-            <div><div style="font-size:22px;font-weight:700;">${allMatches.length}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Played</div></div>
+            <div><div style="font-size:22px;font-weight:700;">${totalPlayed}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Played</div></div>
             <div><div style="font-size:22px;font-weight:700;color:var(--accent);">${wins}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Won</div></div>
             <div><div style="font-size:22px;font-weight:700;color:var(--red);">${losses}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Lost</div></div>
             <div><div style="font-size:22px;font-weight:700;color:var(--brand);">${winRate}%</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Win Rate</div></div>
-          </div>`
+          </div>
+          ${vEventGames.length?`<div style="font-size:10px;color:var(--muted);margin-top:6px;">League: ${allMatches.length} · Events: ${vEventGames.length} (${vEventWins}W ${vEventLosses}L)</div>`:''}`
         :'<div style="color:var(--muted);font-size:12px;font-style:italic;">No confirmed matches yet.</div>'
       }
     </div>

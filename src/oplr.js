@@ -228,13 +228,22 @@ function renderOPPRChart(history){
   const yScale = v=>H-PAD-((v-minV)/(maxV-minV||1))*(H-PAD*2);
 
   const points = history.map((h,i)=>`${PAD+i*xStep},${yScale(h.oplr)}`).join(' ');
-  const dots   = history.map((h,i)=>{
+  // No per-dot labels — too cluttered at 20+ matches
+  // Show only first, last, and min/max as reference points
+  const minVal = Math.min(...vals);
+  const maxVal = Math.max(...vals);
+  const minIdx = vals.indexOf(minVal);
+  const maxIdx = vals.indexOf(maxVal);
+  const labelIdxs = new Set([0, history.length-1, minIdx, maxIdx]);
+
+  const dots = history.map((h,i)=>{
     const x=PAD+i*xStep, y=yScale(h.oplr);
     const c=h.delta>0?'#4ade80':h.delta<0?'#f87171':'#888';
-    const fmtShort=(h.format||'league')[0].toUpperCase();
-    return `<circle cx="${x}" cy="${y}" r="4" fill="${c}"/>
-      <text x="${x}" y="${y-8}" text-anchor="middle" font-size="9" fill="${c}">${h.oplr.toFixed(2)}</text>
-      <text x="${x}" y="${H-2}" text-anchor="middle" font-size="7" fill="#666">${fmtShort}</text>`;
+    const r = labelIdxs.has(i) ? 5 : 3;
+    const label = labelIdxs.has(i)
+      ? `<text x="${x}" y="${y-8}" text-anchor="middle" font-size="9" fill="${c}">${h.oplr.toFixed(2)}</text>`
+      : '';
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${label}`;
   }).join('');
 
   const recent = history.slice(-5).map(h=>{
