@@ -486,11 +486,32 @@ function renderAdminSeason(){
             Prevents accidental season change once play has started. Run this after generating fixtures.
             A locked season blocks "Start New Season" until you explicitly unlock it —
             unlocking requires a second confirmation and is only possible from this League Setup tab.
-            ${locked?'<strong style="color:var(--red);">Currently locked.</strong> Use the Unlock button above to enable season changes.':''}
           </div>
-        </div>`:''}
+        </div>`:locked?`<div style="font-size:11px;color:var(--accent);margin-top:4px;">🔒 Locked — use danger zone below to unlock.</div>`:''}
       </div>
-    </div>`;
+    </div>
+
+    <!-- Season rollover danger zone -->
+    <details style="margin-top:12px;">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--red);list-style:none;display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid var(--border);">
+        ⚠ Season Rollover (danger zone)
+        <span style="font-size:10px;color:var(--muted);font-weight:400;">— expand to start a new season</span>
+      </summary>
+      <div style="margin-top:10px;padding:12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:6px;">
+        ${locked
+          ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Season locked. Unlock only when the season is complete and all matches are confirmed.</div>
+             <button class="btn btn-danger btn-sm" onclick="unlockSeason()">⚠ Unlock Season</button>`
+          : `<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Immediately hides ALL current teams, matches, and standings — data stays in Firestore tagged with the old season. Cannot be undone without a code change.</div>
+             <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:flex-end;">
+               <div><label class="form-label" style="font-size:10px;">Season Slug</label>
+                 <select class="form-select" id="cfg-new-slug"><option value="summer">summer</option><option value="winter">winter</option><option value="spring">spring</option></select></div>
+               <div><label class="form-label" style="font-size:10px;">Year</label>
+                 <input class="form-input" id="cfg-new-year" value="${new Date().getFullYear()}" placeholder="2027"></div>
+               <button class="btn btn-danger btn-sm" onclick="changeSeasonWithGuard()">Start New Season</button>
+             </div>`
+        }
+      </div>
+    </details>`;
 }
 
 // ── Division Manager ────────────────────────────────────────────────────────
