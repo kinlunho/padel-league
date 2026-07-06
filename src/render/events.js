@@ -585,6 +585,7 @@ async function openLeaderboard(eventId){
 
 function closeLeaderboard(){
   if(_leaderboardUnsub){ _leaderboardUnsub(); _leaderboardUnsub=null; }
+  if(window._lbResizeHandler){ window.removeEventListener('resize',window._lbResizeHandler); window._lbResizeHandler=null; }
   document.getElementById('leaderboard-overlay')?.remove();
 }
 
@@ -706,17 +707,17 @@ function renderLeaderboard(eventId, overlay){
     </div>
 
     <!-- Desktop: 3-column split | Mobile: tabbed panels -->
-    <div id="lb-desktop" style="display:none;flex:1;overflow:hidden;
-      grid-template-columns:1fr 1fr 1fr;gap:0;">
+    <div id="lb-desktop" style="display:none;flex:1;min-height:0;
+      grid-template-columns:1fr 1fr 1fr;gap:0;overflow:hidden;">
 
       <!-- Standings -->
-      <div style="overflow-y:auto;padding:20px;border-right:1px solid rgba(255,255,255,0.08);">
+      <div style="height:100%;overflow-y:auto;padding:20px;border-right:1px solid rgba(255,255,255,0.08);box-sizing:border-box;">
         <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">🏆 STANDINGS</div>
         ${renderLbStandings(standings, medals)}
       </div>
 
-      <!-- Current courts -->
-      <div style="overflow-y:auto;padding:20px;border-right:1px solid rgba(255,255,255,0.08);">
+      <!-- Current courts + next round -->
+      <div style="height:100%;overflow-y:auto;padding:20px;border-right:1px solid rgba(255,255,255,0.08);box-sizing:border-box;">
         <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">
           🎾 ROUND ${e.currentRound} — ON COURT
         </div>
@@ -730,7 +731,7 @@ function renderLeaderboard(eventId, overlay){
       </div>
 
       <!-- History -->
-      <div style="overflow-y:auto;padding:20px;">
+      <div style="height:100%;overflow-y:auto;padding:20px;box-sizing:border-box;">
         <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:12px;">📋 RESULTS</div>
         ${historyHTML}
       </div>
@@ -755,15 +756,29 @@ function renderLeaderboard(eventId, overlay){
       <div style="font-size:10px;color:rgba(255,255,255,0.25);">padel-league-hk.web.app</div>
     </div>`;
 
-  // Activate desktop layout if wide enough
-  const isDesktop = window.innerWidth >= 900;
-  const desktopEl = overlay.querySelector('#lb-desktop');
-  const mobileEl  = overlay.querySelector('#lb-mobile-tabs');
-  if(desktopEl&&mobileEl){
-    desktopEl.style.display = isDesktop?'grid':'none';
-    mobileEl.style.display  = isDesktop?'none':'flex';
-    overlay.querySelectorAll('.lb-panel').forEach(p=>p.style.display=isDesktop?'none':'');
+  // Apply layout based on current width — also listen for resize
+  function applyLbLayout(){
+    const isDesktop = window.innerWidth >= 900;
+    const desktopEl = overlay.querySelector('#lb-desktop');
+    const mobileEl  = overlay.querySelector('#lb-mobile-tabs');
+    if(!desktopEl||!mobileEl) return;
+    if(isDesktop){
+      desktopEl.style.display = 'grid';
+      mobileEl.style.display  = 'none';
+      overlay.querySelectorAll('.lb-panel').forEach(p=>{ p.style.display='none'; p.classList.remove('active'); });
+    } else {
+      desktopEl.style.display = 'none';
+      mobileEl.style.display  = 'flex';
+      // Restore active tab panel
+      const activeTab = overlay.querySelector('.lb-tab.active');
+      const tabName = activeTab?.getAttribute('onclick')?.match(/'(\w+)'/)?.[1]||'standings';
+      overlay.querySelectorAll('.lb-panel').forEach(p=>{ p.style.display=''; p.classList.remove('active'); });
+      overlay.querySelector(`#lb-panel-${tabName}`)?.classList.add('active');
+    }
   }
+  applyLbLayout();
+  window._lbResizeHandler = ()=>applyLbLayout();
+  window.addEventListener('resize', window._lbResizeHandler);
 }
 
 function renderLbStandings(standings, medals){

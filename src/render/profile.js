@@ -79,10 +79,14 @@ async function renderMyProfile(){
 
       <!-- Identity -->
       <div>
-        <div style="font-size:20px;font-weight:700;margin-bottom:4px;">${firebase.auth().currentUser?.displayName||S.userEmail}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+          <div style="font-size:20px;font-weight:700;">${firebase.auth().currentUser?.displayName||S.userEmail}</div>
+          ${profile.currentOPLR
+            ? `<div style="font-family:'Space Mono',monospace;font-size:15px;font-weight:700;color:var(--brand);background:rgba(99,102,241,0.1);padding:3px 10px;border-radius:20px;border:1px solid rgba(99,102,241,0.3);">OPPR ${profile.currentOPLR.toFixed(2)}</div>`
+            : currentNPRP ? `<div style="font-size:13px;color:var(--muted);padding:3px 10px;border-radius:20px;border:1px solid var(--border);">NPRP ${currentNPRP}</div>` : ''}
+        </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${S.userEmail}</div>
         ${team ? `<div style="font-size:12px;margin-bottom:4px;">🏸 <strong>${team.name}</strong> · ${team.group}</div>` : ''}
-        ${currentNPRP ? `<div style="font-size:13px;color:var(--brand);font-weight:600;margin-bottom:8px;">OPPR ${currentNPRP}</div>` : ''}
 
         <!-- Hand + Position -->
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
@@ -402,7 +406,7 @@ function renderDirectoryCards(players){
       t.season===ACTIVE_SEASON && t.players?.some(pl=>pl.claimedByEmail===p.email)
     );
     const playerRecord = team?.players?.find(pl=>pl.claimedByEmail===p.email);
-    return { ...p, team, nprp: playerRecord?.nprp||null };
+    return { ...p, team, nprp: playerRecord?.nprp||null, currentOPLR: p.currentOPLR||null };
   });
 
   // Group by division — ordered by getDivisions() + Unassigned at end
@@ -431,7 +435,12 @@ function renderDirectoryCards(players){
                 : `<span style="font-size:18px;">👤</span>`}
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.displayName||p.email}</div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;">
+                <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.displayName||p.email}</div>
+                ${p.currentOPLR
+                  ? `<span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--brand);background:rgba(99,102,241,0.1);padding:1px 7px;border-radius:10px;border:1px solid rgba(99,102,241,0.3);">${p.currentOPLR.toFixed(2)}</span>`
+                  : p.nprp ? `<span style="font-size:11px;color:var(--muted);padding:1px 7px;border-radius:10px;border:1px solid var(--border);">NPRP ${p.nprp}</span>` : ''}
+              </div>
               ${p.team
                 ? `<div style="font-size:11px;color:var(--muted);">${p.team.name}</div>`
                 : '<div style="font-size:11px;color:var(--muted);">No team</div>'}
