@@ -38,52 +38,61 @@ function renderEventsList(container){
     return;
   }
 
-  const formatIcon = {mexicano:'🔄',americano:'🤝',king:'👑'};
+  const formatIcon  = {mexicano:'🔄',americano:'🤝',king:'👑'};
   const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
   const statusColor = {open:'var(--accent)',active:'var(--gold)',complete:'var(--muted)'};
 
+  const active    = events.filter(e=>e.status!=='complete');
+  const completed = events.filter(e=>e.status==='complete');
+
+  const renderCard = (e) => {
+    const isComplete = e.status==='complete';
+    const top3 = (e.standings&&Object.keys(e.standings).length)
+      ? Object.values(e.standings).filter(s=>!s.withdrawn)
+          .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon).slice(0,3)
+      : [];
+    const gameCount = e.type==='king' ? (e.games||[]).length : null;
+    return `<div class="card" style="cursor:pointer;border-left:3px solid ${statusColor[e.status]||'var(--border)'};
+      ${isComplete?'opacity:0.85':''}" onclick="openEventDetail('${e.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div style="font-size:20px;">${formatIcon[e.type]||'🎾'}</div>
+        <span style="font-size:10px;background:${statusColor[e.status]}22;color:${statusColor[e.status]};
+          padding:2px 8px;border-radius:10px;font-weight:600;">
+          ${e.status==='complete'?'✓ DONE':e.status.toUpperCase()}
+        </span>
+      </div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${e.name}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${formatLabel[e.type]||e.type}</div>
+      <div style="font-size:11px;color:var(--muted);">
+        📅 ${e.date||'TBC'} · 👥 ${(e.players||[]).length} players · 🎾 ${e.courts||1} court${e.courts!==1?'s':''}
+      </div>
+      ${gameCount!==null?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${gameCount} games played</div>`
+        :`<div style="font-size:11px;color:var(--brand);margin-top:4px;">
+          Round ${e.currentRound||0}${e.totalRounds?` / ${e.totalRounds}`:''}
+        </div>`}
+      ${top3.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+        ${top3.map((s,i)=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
+          <span>${['🥇','🥈','🥉'][i]} ${s.name}</span>
+          <span style="font-family:'Space Mono',monospace;color:${isComplete?'var(--muted)':'var(--brand)'};font-weight:700;">${s.points}pts</span>
+        </div>`).join('')}
+      </div>`:''}
+    </div>`;
+  };
+
   container.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-size:13px;color:var(--muted);">${events.length} event${events.length!==1?'s':''}</div>
+      <div style="font-size:13px;color:var(--muted);">${active.length} active · ${completed.length} completed</div>
       ${createBtn}
     </div>
-    <div class="grid-2">
-      ${events.map(e=>`
-        <div class="card" style="cursor:pointer;border-left:3px solid ${statusColor[e.status]||'var(--border)'};"
-          onclick="openEventDetail('${e.id}')">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-            <div style="font-size:20px;">${formatIcon[e.type]||'🎾'}</div>
-            <span class="chip" style="font-size:10px;background:${statusColor[e.status]}22;color:${statusColor[e.status]};">
-              ${e.status.toUpperCase()}
-            </span>
-          </div>
-          <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${e.name}</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${formatLabel[e.type]||e.type}</div>
-          <div style="font-size:11px;color:var(--muted);">
-            📅 ${e.date||'TBC'} · 👥 ${(e.players||[]).length} players · 🎾 ${e.courts||1} court${e.courts!==1?'s':''}
-          </div>
-          ${e.scoreFormat?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">
-            Score: ${e.scoreFormat.type==='games'?`First to ${e.scoreFormat.target} games`:
-              e.scoreFormat.type==='timed'?`${e.scoreFormat.minutes} min`:'Sets'}
-          </div>`:''}
-          <div style="font-size:11px;color:var(--brand);margin-top:6px;">
-            Round ${e.currentRound||0}${e.totalRounds?` / ${e.totalRounds}`:''}
-          </div>
-          ${e.status==='active'&&e.standings&&Object.keys(e.standings).length?(()=>{
-            const top3 = Object.values(e.standings)
-              .filter(s=>!s.withdrawn)
-              .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
-              .slice(0,3);
-            return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
-              ${top3.map((s,i)=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
-                <span>${['🥇','🥈','🥉'][i]} ${s.name}</span>
-                <span style="font-family:'Space Mono',monospace;color:var(--brand);font-weight:700;">${s.points}pts</span>
-              </div>`).join('')}
-            </div>`;
-          })():''}
-        </div>`
-      ).join('')}
-    </div>`;
+    ${active.length?`<div class="grid-2">${active.map(renderCard).join('')}</div>`:''}
+    ${completed.length?`
+      <div style="margin-top:${active.length?'24px':'0'};">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+          letter-spacing:1px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);">
+          ✓ Completed Events
+        </div>
+        <div class="grid-2">${completed.map(renderCard).join('')}</div>
+      </div>`:''}`;
 }
 
 // ── Event detail ──────────────────────────────────────────────────────────────

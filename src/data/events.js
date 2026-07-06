@@ -63,7 +63,6 @@ const EventsDB = {
 
   subscribe(onData){
     return db.collection('events')
-      .where('status','in',['open','active'])
       .orderBy('date','desc')
       .onSnapshot(snap=>{
         S.events = {};
