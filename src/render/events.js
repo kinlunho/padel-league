@@ -640,6 +640,93 @@ function toggleAmericanoVariant(){
   if(kingWrap) kingWrap.style.display = type==='king' ? '' : 'none';
 }
 
+// ── King of the Court pair definition ────────────────────────────────────────
+// Tap-to-pair UI: tap player on left to select, tap another to form pair.
+// Works reliably on mobile — no drag needed.
+
+let _kingPairs = [];      // [{uid1,name1,uid2,name2,pairName}]
+let _kingSelected = null; // uid of first selected player
+
+function openKingPairingUI(){
+  // Show pairing UI after player selection
+  const modal = document.getElementById('createEventModal');
+  const pairingDiv = document.getElementById('ev-king-pairing');
+  if(!pairingDiv) return;
+
+  const players = _evSelectedPlayers;
+  if(!players.length){ showToast('Select players first',true); return; }
+
+  _kingPairs = [];
+  _kingSelected = null;
+  renderKingPairingUI();
+  pairingDiv.style.display = '';
+}
+
+function renderKingPairingUI(){
+  const container = document.getElementById('ev-king-pairing-players');
+  if(!container) return;
+
+  const paired = new Set(_kingPairs.flatMap(p=>[p.uid1,p.uid2]));
+  const unpaired = _evSelectedPlayers.filter(p=>!paired.has(p.uid));
+
+  container.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+      Tap two players to pair them. ${_kingSelected?'<strong style="color:var(--accent);">Now tap a second player to complete the pair.</strong>':'Tap first player to start.'}
+    </div>
+    <!-- Unpaired players -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      ${unpaired.map(p=>`
+        <div onclick="kingSelectPlayer('${p.uid}')"
+          style="padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;
+          border:2px solid ${_kingSelected===p.uid?'var(--accent)':'var(--border)'};
+          background:${_kingSelected===p.uid?'rgba(74,222,128,0.1)':'var(--surface-1)'};
+          color:${_kingSelected===p.uid?'var(--accent)':'var(--text-primary)'};">
+          ${p.name} <span style="font-size:10px;color:var(--muted);">NPRP ${p.nprp}</span>
+        </div>`).join('')}
+    </div>
+    <!-- Formed pairs -->
+    ${_kingPairs.length?`
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Pairs</div>
+      ${_kingPairs.map((pair,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:1;font-size:12px;font-weight:600;">
+            ${pair.name1} & ${pair.name2}
+          </div>
+          <button onclick="kingRemovePair(${i})" style="background:none;border:none;
+            color:var(--muted);cursor:pointer;font-size:12px;">✕</button>
+        </div>`).join('')}
+    `:''}
+    ${unpaired.length===0&&_kingPairs.length>0?
+      '<div style="font-size:11px;color:var(--accent);margin-top:8px;">✓ All players paired</div>':''}`;
+}
+
+function kingSelectPlayer(uid){
+  if(!_kingSelected){
+    _kingSelected = uid;
+  } else if(_kingSelected === uid){
+    _kingSelected = null; // deselect
+  } else {
+    // Form the pair
+    const p1 = _evSelectedPlayers.find(p=>p.uid===_kingSelected);
+    const p2 = _evSelectedPlayers.find(p=>p.uid===uid);
+    if(p1&&p2){
+      _kingPairs.push({
+        uid1:p1.uid, name1:p1.name, nprp1:p1.nprp,
+        uid2:p2.uid, name2:p2.name, nprp2:p2.nprp,
+        pairName:`${p1.name} & ${p2.name}`
+      });
+    }
+    _kingSelected = null;
+  }
+  renderKingPairingUI();
+}
+
+function kingRemovePair(idx){
+  _kingPairs.splice(idx,1);
+  _kingSelected = null;
+  renderKingPairingUI();
+}
+
 function openCreateEventModal(){
   _evSelectedPlayers = [];
   renderSelectedEventPlayers();
@@ -663,6 +750,22 @@ async function createPadelEvent(){
   if(players.length<4){showToast('Need at least 4 players',true);return;}
   if(players.length%2!==0){showToast('Need an even number of players — add or remove one',true);return;}
 
+  // For King fixed pairs — validate all players are paired
+  const isKingFixed = type==='king' && pairMode==='fixed';
+  if(isKingFixed){
+    const pairedCount = _kingPairs.length * 2;
+    if(pairedCount < players.length){
+      showToast(`Pair all players first — ${players.length-pairedCount} unpaired`,true); return;
+    }
+  }
+  // Build pairs array for King
+  const pairs = isKingFixed ? _kingPairs.map((p,i)=>({
+    pairId:`pair_${i}`,
+    uid1:p.uid1, uid2:p.uid2,
+    name:`${p.name1} & ${p.name2}`,
+    nprp1:p.nprp1, nprp2:p.nprp2
+  })) : [];
+
   const scoreFormat = sfType==='games'
     ? {type:'games',target:sfVal}
     : sfType==='timed'
@@ -677,7 +780,7 @@ async function createPadelEvent(){
   const eventId = await EventsDB.create({
     name, type, date, courts, totalRounds:rounds,
     players, scoreFormat:{ ...scoreFormat, hardCap }, variant, season: ACTIVE_SEASON,
-    queueVariant, pairMode, winCap
+    queueVariant, pairMode, winCap, pairs
   });
 
   closeModal('createEventModal');
@@ -745,6 +848,22 @@ async function saveEditEvent(eventId){
   const players = _evSelectedPlayers.map(p=>({...p, withdrawn:false}));
   if(players.length<4){showToast('Need at least 4 players',true);return;}
   if(players.length%2!==0){showToast('Need an even number of players — add or remove one',true);return;}
+
+  // For King fixed pairs — validate all players are paired
+  const isKingFixed = type==='king' && pairMode==='fixed';
+  if(isKingFixed){
+    const pairedCount = _kingPairs.length * 2;
+    if(pairedCount < players.length){
+      showToast(`Pair all players first — ${players.length-pairedCount} unpaired`,true); return;
+    }
+  }
+  // Build pairs array for King
+  const pairs = isKingFixed ? _kingPairs.map((p,i)=>({
+    pairId:`pair_${i}`,
+    uid1:p.uid1, uid2:p.uid2,
+    name:`${p.name1} & ${p.name2}`,
+    nprp1:p.nprp1, nprp2:p.nprp2
+  })) : [];
 
   const scoreFormat = sfType==='games'?{type:'games',target:sfVal}:sfType==='timed'?{type:'timed',minutes:sfVal}:{type:'sets',sets:2};
 
@@ -875,10 +994,12 @@ function lbRenderAll(eventId){
   const e = S.events[eventId];
   if(!e) return;
 
-  const standings = e.standings
-    ? Object.values(e.standings).filter(s=>!s.withdrawn)
-        .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
-    : [];
+  // King of the Court uses pair standings; others use individual standings
+  const isKing = e.type === 'king';
+  const standingsData = e.standings ? Object.values(e.standings) : [];
+  const standings = standingsData
+    .filter(s=>!s.withdrawn)
+    .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon);
 
   const currentRound = S_eventRounds?.find(r=>r.roundNumber===e.currentRound);
   const nextRound    = S_eventRounds?.find(r=>r.roundNumber===(e.currentRound||0)+1);

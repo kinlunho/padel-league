@@ -523,7 +523,8 @@ async function kingStartEvent(eventId){
 async function kingEnterScore(eventId, courtId, scoreA, scoreB){
   if(!isAdminUser()){ showToast('Admin only',true); return; }
 
-  const e = await EventsDB.get(eventId);
+  // Read from local state — Firestore may lag behind our last write
+  const e = S.events[eventId] || S_eventDetail;
   if(!e) return;
 
   const target    = e.scoreFormat?.target || 16;
