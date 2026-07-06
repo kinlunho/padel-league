@@ -211,6 +211,9 @@ function renderEventDetail(container){
         </div>`).join('')}
     </div>`:''}
 
+    <!-- King of the Court live view -->
+    ${e.type==='king'&&e.status==='active'?renderKingCourtUI(e):''}
+
     <!-- Past rounds (admin) — collapsed, with edit buttons -->
     ${isAdminUser()&&S_eventRounds.length>1?`
     <div style="margin-top:16px;">
@@ -266,6 +269,94 @@ function renderEventDetail(container){
           ${!p.withdrawn&&e.status==='active'?`<button class="btn btn-ghost btn-sm" style="font-size:10px;" onclick="mexicanoWithdrawPlayer('${e.id}','${p.uid}')">Withdraw</button>`:''}
         </div>`).join('')}
     </div>`:''}`;
+}
+
+// ── King of the Court UI ─────────────────────────────────────────────────────
+
+function renderKingCourtUI(e){
+  const courts   = (e.courts||[]).sort((a,b)=>a.level-b.level);
+  const queue    = e.queue||[];
+  const games    = e.games||[];
+  const target   = e.scoreFormat?.target||16;
+  const hardCap  = e.scoreFormat?.hardCap||20;
+
+  const courtCards = courts.map(court => {
+    const isKing = court.courtType==='king';
+    const color  = isKing ? 'var(--gold)' : 'var(--brand)';
+    const label  = isKing ? '👑 KING COURT' : `⚔ CHALLENGER ${court.level}`;
+    const liveTag = court.status==='playing'
+      ? `<span style="font-size:10px;color:var(--accent);">● LIVE</span>`
+      : `<span style="font-size:10px;color:var(--muted);">○ WAITING</span>`;
+
+    let body = '';
+    if(court.status==='playing'){
+      body = `<div style="font-weight:600;font-size:13px;">${court.currentPairA?.name||'—'}</div>
+        <div style="font-size:11px;color:var(--muted);margin:4px 0;">vs</div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:10px;">${court.currentPairB?.name||'—'}</div>`;
+      if(isAdminUser()){
+        body += `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <input type="number" min="0" max="${hardCap}" id="ksA_${court.courtId}" placeholder="0"
+            style="width:52px;padding:6px;border-radius:4px;border:1px solid var(--border);
+            background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:16px;font-weight:700;">
+          <span style="color:var(--muted);font-weight:700;">–</span>
+          <input type="number" min="0" max="${hardCap}" id="ksB_${court.courtId}" placeholder="0"
+            style="width:52px;padding:6px;border-radius:4px;border:1px solid var(--border);
+            background:var(--surface-1);color:var(--text-primary);text-align:center;font-size:16px;font-weight:700;">
+          <button class="btn btn-primary btn-sm"
+            onclick="submitKingScore('${e.id}','${court.courtId}')">✓</button>
+          <span style="font-size:9px;color:var(--muted);">to ${target}, cap ${hardCap}</span>
+        </div>`;
+      }
+    } else {
+      body = `<div style="font-size:12px;color:var(--muted);font-style:italic;">Waiting for next pair...</div>`;
+    }
+
+    return `<div class="card" style="border-left:3px solid ${color};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:${color};">${label}</div>
+        ${liveTag}
+      </div>
+      ${body}
+    </div>`;
+  }).join('');
+
+  const queueHTML = !queue.length
+    ? '<div style="color:var(--muted);font-size:12px;font-style:italic;">Queue is empty</div>'
+    : queue.map((pair,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:11px;color:var(--muted);width:20px;text-align:center;">${i+1}</div>
+        <div style="flex:1;font-size:12px;font-weight:600;">${pair.name}</div>
+        ${i===0 ? '<span style="font-size:10px;color:var(--accent);">Next up</span>' : ''}
+        ${isAdminUser() ? `<button class="btn btn-ghost btn-sm" style="font-size:10px;"
+          onclick="kingRemoveFromQueue('${e.id}',${i})">✕</button>` : ''}
+      </div>`).join('');
+
+  const recentGames = [...games].reverse().slice(0,5).map(g => {
+    const aWon = g.winner==='A';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:10px;color:${g.courtType==='king'?'var(--gold)':'var(--brand)'};width:16px;">
+        ${g.courtType==='king'?'👑':'⚔'}
+      </div>
+      <div style="flex:1;font-size:12px;color:${aWon?'var(--text-primary)':'var(--muted)'};">${g.teamA}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:var(--gold);">
+        ${g.scoreA}–${g.scoreB}
+      </div>
+      <div style="flex:1;text-align:right;font-size:12px;color:${!aWon?'var(--text-primary)':'var(--muted)'};">${g.teamB}</div>
+    </div>`;
+  }).join('');
+
+  return `<div style="margin-bottom:16px;">
+    <div style="font-weight:700;font-size:13px;margin-bottom:10px;">👑 Courts</div>
+    <div class="grid-2" style="margin-bottom:16px;">${courtCards}</div>
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px;">
+      📋 Queue (${queue.length} pairs waiting)
+    </div>
+    ${queueHTML}
+    ${games.length ? `<div style="margin-top:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">Recent Games</div>
+      ${recentGames}
+    </div>` : ''}
+  </div>`;
 }
 
 // ── Score submit helper ───────────────────────────────────────────────────────
@@ -336,6 +427,13 @@ async function saveEventScoreEdit(eventId, roundNumber, matchId){
   } catch(err){ showToast('Failed: '+err.message, true); }
 }
 
+async function submitKingScore(eventId, courtId){
+  const scoreA = parseInt(document.getElementById('ksA_'+courtId)?.value);
+  const scoreB = parseInt(document.getElementById('ksB_'+courtId)?.value);
+  if(isNaN(scoreA)||isNaN(scoreB)){ showToast('Enter both scores',true); return; }
+  await kingEnterScore(eventId, courtId, scoreA, scoreB);
+}
+
 async function submitMexicanoScore(eventId, roundNumber, matchId){
   const scoreA = parseInt(document.getElementById(`sA_${matchId}`)?.value);
   const scoreB = parseInt(document.getElementById(`sB_${matchId}`)?.value);
@@ -355,13 +453,15 @@ async function startEvent(eventId){
   const e = S.events[eventId];
   if(!e) return;
   if(e.type === 'americano') return americanoStartEvent(eventId);
-  return mexicanoStartEvent(eventId); // mexicano + king (future)
+  if(e.type === 'king')      return kingStartEvent(eventId);
+  return mexicanoStartEvent(eventId);
 }
 
 async function advanceRound(eventId){
   const e = S.events[eventId];
   if(!e) return;
   if(e.type === 'americano') return americanoNextRound(eventId);
+  if(e.type === 'king')      return;
   return mexicanoNextRound(eventId);
 }
 
@@ -536,6 +636,8 @@ function toggleAmericanoVariant(){
   const type = document.getElementById('ev-type')?.value;
   const wrap = document.getElementById('ev-variant-wrap');
   if(wrap) wrap.style.display = type==='americano' ? '' : 'none';
+  const kingWrap = document.getElementById('ev-king-wrap');
+  if(kingWrap) kingWrap.style.display = type==='king' ? '' : 'none';
 }
 
 function openCreateEventModal(){
@@ -566,11 +668,16 @@ async function createPadelEvent(){
     : sfType==='timed'
       ? {type:'timed',minutes:sfVal}
       : {type:'sets',sets:2};
-  const variant = document.getElementById('ev-variant')?.value||'roundrobin';
+  const variant      = document.getElementById('ev-variant')?.value||'roundrobin';
+  const queueVariant = document.getElementById('ev-queue-variant')?.value||'winners-stay';
+  const pairMode     = document.getElementById('ev-pair-mode')?.value||'fixed';
+  const winCap       = parseInt(document.getElementById('ev-win-cap')?.value||'3');
+  const hardCap      = parseInt(document.getElementById('ev-hard-cap')?.value||'20');
 
   const eventId = await EventsDB.create({
     name, type, date, courts, totalRounds:rounds,
-    players, scoreFormat, variant, season: ACTIVE_SEASON
+    players, scoreFormat:{ ...scoreFormat, hardCap }, variant, season: ACTIVE_SEASON,
+    queueVariant, pairMode, winCap
   });
 
   closeModal('createEventModal');

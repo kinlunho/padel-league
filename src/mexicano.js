@@ -392,3 +392,355 @@ async function americanoNextRound(eventId){
   S_eventRounds = await EventsDB.getRounds(eventId);
   renderEventsPage();
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KING OF THE COURT ENGINE
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Architecture: Model A — Hierarchical courts
+//   - 1 King Court + N Challenger Courts
+//   - Challenger winners wait → challenge King when current game ends
+//   - King losers go to back of lowest challenger queue
+//   - Winners Stay variant: configurable consecutive win cap (default 3)
+//   - Rotational Shuffle: after each game, winning pair splits, all rotate
+//   - Waiting List: digital queue, admin manages
+//
+// Scoring: first to X with 2-point difference, configurable hard cap
+// Pairs: fixed (admin sets) or random (shuffled at start)
+//
+// Data model (on event doc):
+//   queue:        [{uid, name, nprp, partneredWith}]  — ordered waiting list
+//   courts:       [{courtId, courtType:'king'|'challenger', level:1..N,
+//                   teamA:[uid,uid], teamB:[uid,uid],
+//                   scoreA, scoreB, consecutiveWins, status:'playing'|'waiting'}]
+//   games:        [{gameId, courtType, level, teamA, teamB,
+//                   scoreA, scoreB, winnerId:'A'|'B', timestamp}]
+//   standings:    {uid: {gamesWon, gamesLost, gamesPlayed, points, consecutiveWins}}
+//   pairs:        [{uid1, uid2, name}]  — fixed pairs for the session
+
+// ── King event initialisation ─────────────────────────────────────────────────
+
+async function kingStartEvent(eventId){
+  if(!isAdminUser()){ showToast('Admin only',true); return; }
+  const e = S.events[eventId];
+  if(!e) return;
+
+  const players = e.players.filter(p=>!p.withdrawn);
+  if(players.length < 4){ showToast('Need at least 4 players',true); return; }
+
+  // Build pairs
+  let pairs = [];
+  const pairMode = e.pairMode || 'fixed';
+  if(pairMode === 'random'){
+    const shuffled = mexicanoShuffleArray(players);
+    for(let i=0; i+1<shuffled.length; i+=2){
+      pairs.push({ uid1:shuffled[i].uid, uid2:shuffled[i+1].uid,
+        name:`${shuffled[i].name} & ${shuffled[i+1].name}` });
+    }
+    if(shuffled.length%2!==0){
+      // Odd player out joins as floater — gets paired with next available
+      pairs.push({ uid1:shuffled[shuffled.length-1].uid, uid2:null,
+        name:shuffled[shuffled.length-1].name });
+    }
+  } else {
+    // Fixed pairs — use the pairs array already set by admin
+    pairs = e.pairs || [];
+    if(!pairs.length){
+      // Fallback: sequential pairing from players list
+      for(let i=0; i+1<players.length; i+=2){
+        pairs.push({ uid1:players[i].uid, uid2:players[i+1].uid,
+          name:`${players[i].name} & ${players[i+1].name}` });
+      }
+    }
+  }
+
+  // Build initial queue — all pairs waiting
+  const queue = pairs.map((pair,i) => ({
+    pairId: `pair_${i}`,
+    uid1: pair.uid1, uid2: pair.uid2,
+    name: pair.name,
+    position: i
+  }));
+
+  // Initialise courts
+  const numCourts = e.courts || 1;
+  const courts = [];
+  courts.push({ courtId:'king', courtType:'king', level:0,
+    teamA:null, teamB:null, scoreA:0, scoreB:0,
+    consecutiveWins:0, status:'waiting', currentPairA:null, currentPairB:null });
+  for(let i=1; i<numCourts; i++){
+    courts.push({ courtId:`challenger_${i}`, courtType:'challenger', level:i,
+      teamA:null, teamB:null, scoreA:0, scoreB:0,
+      consecutiveWins:0, status:'waiting', currentPairA:null, currentPairB:null });
+  }
+
+  // Initialise standings
+  const standings = {};
+  pairs.forEach((p,i)=>{
+    standings[`pair_${i}`] = {
+      pairId:`pair_${i}`, name:p.name,
+      gamesWon:0, gamesLost:0, gamesPlayed:0,
+      points:0, consecutiveWins:0
+    };
+  });
+
+  await EventsDB.update(eventId, {
+    status:'active', queue, courts, pairs,
+    games:[], standings,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  // Auto-fill courts from queue
+  await kingFillCourts(eventId);
+  showToast('King of the Court started!');
+  S_eventDetail = await EventsDB.get(eventId);
+  S.events[eventId] = S_eventDetail;
+  renderEventsPage();
+}
+
+// ── Fill empty courts from queue ──────────────────────────────────────────────
+
+async function kingFillCourts(eventId){
+  const e = await EventsDB.get(eventId);
+  if(!e) return;
+
+  let courts  = [...(e.courts||[])];
+  let queue   = [...(e.queue||[])];
+  let changed = false;
+
+  // Sort courts: king first, then challengers by level
+  courts.sort((a,b)=> a.level-b.level);
+
+  for(const court of courts){
+    if(court.status==='playing') continue;
+    if(queue.length < 2) break;
+
+    const pairA = queue.shift();
+    const pairB = queue.shift();
+    court.teamA        = [pairA.uid1, pairA.uid2].filter(Boolean);
+    court.teamB        = [pairB.uid1, pairB.uid2].filter(Boolean);
+    court.currentPairA = pairA;
+    court.currentPairB = pairB;
+    court.scoreA       = 0;
+    court.scoreB       = 0;
+    court.status       = 'playing';
+    changed = true;
+  }
+
+  if(changed){
+    await EventsDB.update(eventId, {
+      courts, queue,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+}
+
+// ── Score entry and game resolution ──────────────────────────────────────────
+
+async function kingEnterScore(eventId, courtId, scoreA, scoreB){
+  if(!isAdminUser()){ showToast('Admin only',true); return; }
+
+  const e = await EventsDB.get(eventId);
+  if(!e) return;
+
+  const target    = e.scoreFormat?.target || 16;
+  const hardCap   = e.scoreFormat?.hardCap || 20;
+  const winCap    = e.winCap || 3;
+  const queueMode = e.queueVariant || 'winners-stay';
+
+  // Validate score — first to target with 2-point diff, hard cap
+  const diff = Math.abs(scoreA - scoreB);
+  const maxScore = Math.max(scoreA, scoreB);
+  if(maxScore < target && maxScore < hardCap){
+    showToast(`Game not finished — first to ${target} with 2-point difference`,true);
+    return;
+  }
+  if(maxScore >= target && diff < 2 && maxScore < hardCap){
+    showToast(`Need 2-point difference (or reach hard cap of ${hardCap})`,true);
+    return;
+  }
+
+  const courts  = [...(e.courts||[])];
+  const queue   = [...(e.queue||[])];
+  const games   = [...(e.games||[])];
+  const standings = {...(e.standings||{})};
+
+  const court = courts.find(c=>c.courtId===courtId);
+  if(!court||court.status!=='playing'){ showToast('Court not active',true); return; }
+
+  const winnerSide  = scoreA > scoreB ? 'A' : 'B';
+  const winnerPair  = winnerSide==='A' ? court.currentPairA : court.currentPairB;
+  const loserPair   = winnerSide==='A' ? court.currentPairB : court.currentPairA;
+
+  // Log the game
+  const gameId = `g_${Date.now()}`;
+  games.push({
+    gameId, courtId,
+    courtType: court.courtType,
+    level: court.level,
+    teamA: court.currentPairA?.name||'',
+    teamB: court.currentPairB?.name||'',
+    scoreA, scoreB,
+    winner: winnerSide,
+    winnerName: winnerPair?.name||'',
+    timestamp: new Date().toISOString()
+  });
+
+  // Update standings
+  const wId = winnerPair?.pairId;
+  const lId = loserPair?.pairId;
+  if(wId&&standings[wId]){
+    standings[wId].gamesWon++;
+    standings[wId].gamesPlayed++;
+    standings[wId].points += scoreA > scoreB ? scoreA : scoreB;
+    standings[wId].consecutiveWins = (standings[wId].consecutiveWins||0)+1;
+  }
+  if(lId&&standings[lId]){
+    standings[lId].gamesLost++;
+    standings[lId].gamesPlayed++;
+    standings[lId].consecutiveWins = 0;
+  }
+
+  // Queue management by variant
+  const winnerConsecWins = standings[wId]?.consecutiveWins||0;
+  const capReached = court.courtType==='king' && winnerConsecWins >= winCap;
+
+  if(queueMode === 'rotational'){
+    // Both pairs leave, queue gets next two
+    queue.push({...loserPair, consecutiveWins:0});
+    // Split winning pair — each goes to back of queue with new random partner
+    // For simplicity: both winners go back as a pair (full rotational requires partner tracking)
+    queue.push({...winnerPair, consecutiveWins:0});
+    court.status = 'waiting';
+    court.currentPairA = null;
+    court.currentPairB = null;
+
+  } else if(queueMode === 'winners-stay' && !capReached && court.courtType!=='king'){
+    // Challenger court: winner stays, loser goes to back of lowest challenger queue
+    queue.push({...loserPair, consecutiveWins:0});
+    // Winner stays — bring next from queue as new challenger
+    if(queue.length >= 1){
+      const nextChallenger = queue.shift();
+      const isWinnerA = winnerSide==='A';
+      court.currentPairA = isWinnerA ? winnerPair : nextChallenger;
+      court.currentPairB = isWinnerA ? nextChallenger : winnerPair;
+      court.teamA = court.currentPairA.uid1?[court.currentPairA.uid1,court.currentPairA.uid2].filter(Boolean):[];
+      court.teamB = court.currentPairB.uid1?[court.currentPairB.uid1,court.currentPairB.uid2].filter(Boolean):[];
+      court.scoreA = 0; court.scoreB = 0;
+      court.status = 'playing';
+    } else {
+      court.status = 'waiting';
+    }
+
+  } else {
+    // King court winners-stay OR cap reached OR waiting-list:
+    // Loser goes to back of queue
+    queue.push({...loserPair, consecutiveWins:0});
+
+    if(capReached){
+      // Cap reached — winner also vacates, goes back to queue
+      queue.push({...winnerPair, consecutiveWins:0});
+      if(standings[wId]) standings[wId].consecutiveWins = 0;
+      court.status = 'waiting';
+      court.currentPairA = null;
+      court.currentPairB = null;
+    } else {
+      // Promotion from top challenger court
+      const topChallenger = courts
+        .filter(c=>c.courtType==='challenger')
+        .sort((a,b)=>a.level-b.level)[0];
+
+      if(topChallenger && topChallenger.status==='waiting' && queue.length>=1){
+        // Challenger court has a winner waiting to challenge
+        const challenger = queue.shift();
+        const isWinnerA = winnerSide==='A';
+        court.currentPairA = isWinnerA ? winnerPair : challenger;
+        court.currentPairB = isWinnerA ? challenger : winnerPair;
+        court.teamA = court.currentPairA.uid1?[court.currentPairA.uid1,court.currentPairA.uid2].filter(Boolean):[];
+        court.teamB = court.currentPairB.uid1?[court.currentPairB.uid1,court.currentPairB.uid2].filter(Boolean):[];
+        court.scoreA = 0; court.scoreB = 0;
+        court.status = 'playing';
+      } else if(queue.length >= 1){
+        const nextChallenger = queue.shift();
+        const isWinnerA = winnerSide==='A';
+        court.currentPairA = isWinnerA ? winnerPair : nextChallenger;
+        court.currentPairB = isWinnerA ? nextChallenger : winnerPair;
+        court.teamA = court.currentPairA.uid1?[court.currentPairA.uid1,court.currentPairA.uid2].filter(Boolean):[];
+        court.teamB = court.currentPairB.uid1?[court.currentPairB.uid1,court.currentPairB.uid2].filter(Boolean):[];
+        court.scoreA = 0; court.scoreB = 0;
+        court.status = 'playing';
+      } else {
+        court.status = 'waiting';
+      }
+    }
+  }
+
+  // Refill empty challenger courts from queue
+  for(const c of courts.filter(ct=>ct.courtType==='challenger'&&ct.status==='waiting')){
+    if(queue.length >= 2){
+      const pA = queue.shift();
+      const pB = queue.shift();
+      c.currentPairA = pA; c.currentPairB = pB;
+      c.teamA = [pA.uid1,pA.uid2].filter(Boolean);
+      c.teamB = [pB.uid1,pB.uid2].filter(Boolean);
+      c.scoreA = 0; c.scoreB = 0; c.status = 'playing';
+    }
+  }
+
+  // OPPR update
+  if(winnerPair&&loserPair){
+    const date = e.date||new Date().toISOString().split('T')[0];
+    const season = ACTIVE_SEASON;
+    const getUids = pair => [pair.uid1,pair.uid2].filter(Boolean);
+    const getPlayers = uids => (e.players||[]).filter(p=>uids.includes(p.uid));
+
+    const wPlayers = getPlayers(getUids(winnerPair));
+    const lPlayers = getPlayers(getUids(loserPair));
+    const wOPPR = wPlayers.length ? wPlayers.reduce((s,p)=>s+(p.nprp||3.5),0)/wPlayers.length : 3.5;
+    const lOPPR = lPlayers.length ? lPlayers.reduce((s,p)=>s+(p.nprp||3.5),0)/lPlayers.length : 3.5;
+    const exp   = opprExpected(wOPPR, lOPPR);
+    const margin= opprMarginFactor(Math.max(scoreA,scoreB), Math.min(scoreA,scoreB));
+
+    for(const p of wPlayers){
+      const doc = await fetchPlayerDoc(p.email);
+      await writeOPPR(doc, p.nprp, 1, exp, margin, 'king', gameId, date, season);
+    }
+    for(const p of lPlayers){
+      const doc = await fetchPlayerDoc(p.email);
+      await writeOPPR(doc, p.nprp, 0, 1-exp, margin, 'king', gameId, date, season);
+    }
+  }
+
+  await EventsDB.update(eventId, {
+    courts, queue, games, standings,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  showToast('Game recorded');
+  S_eventDetail = await EventsDB.get(eventId);
+  S.events[eventId] = S_eventDetail;
+  renderEventsPage();
+}
+
+// ── Admin queue management ────────────────────────────────────────────────────
+
+async function kingAddToQueue(eventId, pairId){
+  const e = S.events[eventId];
+  const pair = (e.pairs||[]).find(p=>p.pairId===pairId);
+  if(!pair) return;
+  const queue = [...(e.queue||[]), {...pair}];
+  await EventsDB.update(eventId, {queue,
+    lastUpdated:firebase.firestore.FieldValue.serverTimestamp()});
+  S.events[eventId] = await EventsDB.get(eventId);
+  renderEventsPage();
+}
+
+async function kingRemoveFromQueue(eventId, idx){
+  const e = S.events[eventId];
+  const queue = [...(e.queue||[])];
+  queue.splice(idx,1);
+  await EventsDB.update(eventId, {queue,
+    lastUpdated:firebase.firestore.FieldValue.serverTimestamp()});
+  S.events[eventId] = await EventsDB.get(eventId);
+  renderEventsPage();
+}
