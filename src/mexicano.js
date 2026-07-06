@@ -484,56 +484,39 @@ async function kingStartEvent(eventId){
     };
   });
 
+  // Fill courts directly from queue before writing to Firestore
+  // avoids the read-after-write race condition
+  let filledCourts = [...courts];
+  let filledQueue  = [...queue];
+  for(const court of filledCourts){
+    if(filledQueue.length < 2) break;
+    const pA = filledQueue.shift();
+    const pB = filledQueue.shift();
+    court.currentPairA = pA;
+    court.currentPairB = pB;
+    court.teamA = [pA.uid1, pA.uid2].filter(Boolean);
+    court.teamB = [pB.uid1, pB.uid2].filter(Boolean);
+    court.scoreA = 0; court.scoreB = 0;
+    court.status = 'playing';
+  }
+
   await EventsDB.update(eventId, {
-    status:'active', queue, courts, pairs,
+    status:'active', queue:filledQueue, courts:filledCourts, pairs,
     games:[], standings,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  // Auto-fill courts from queue
-  await kingFillCourts(eventId);
   showToast('King of the Court started!');
-  S_eventDetail = await EventsDB.get(eventId);
-  S.events[eventId] = S_eventDetail;
+  // Update local state directly — no re-fetch needed
+  const updated = { ...S.events[eventId],
+    status:'active', queue:filledQueue, courts:filledCourts,
+    pairs, games:[], standings };
+  S.events[eventId] = updated;
+  S_eventDetail = updated;
   renderEventsPage();
 }
 
-// ── Fill empty courts from queue ──────────────────────────────────────────────
-
-async function kingFillCourts(eventId){
-  const e = await EventsDB.get(eventId);
-  if(!e) return;
-
-  let courts  = [...(e.courts||[])];
-  let queue   = [...(e.queue||[])];
-  let changed = false;
-
-  // Sort courts: king first, then challengers by level
-  courts.sort((a,b)=> a.level-b.level);
-
-  for(const court of courts){
-    if(court.status==='playing') continue;
-    if(queue.length < 2) break;
-
-    const pairA = queue.shift();
-    const pairB = queue.shift();
-    court.teamA        = [pairA.uid1, pairA.uid2].filter(Boolean);
-    court.teamB        = [pairB.uid1, pairB.uid2].filter(Boolean);
-    court.currentPairA = pairA;
-    court.currentPairB = pairB;
-    court.scoreA       = 0;
-    court.scoreB       = 0;
-    court.status       = 'playing';
-    changed = true;
-  }
-
-  if(changed){
-    await EventsDB.update(eventId, {
-      courts, queue,
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }
-}
+// kingFillCourts removed — courts now filled inline in kingStartEvent
 
 // ── Score entry and game resolution ──────────────────────────────────────────
 
@@ -717,8 +700,10 @@ async function kingEnterScore(eventId, courtId, scoreA, scoreB){
   });
 
   showToast('Game recorded');
-  S_eventDetail = await EventsDB.get(eventId);
-  S.events[eventId] = S_eventDetail;
+  // Update local state directly — avoids read-after-write race
+  const updated2 = { ...S.events[eventId], courts, queue, games, standings };
+  S.events[eventId] = updated2;
+  S_eventDetail = updated2;
   renderEventsPage();
 }
 
