@@ -756,26 +756,67 @@ function lbRenderAll(eventId){
   // ── History ──
   const hEl = document.getElementById('lb-view-history');
   if(hEl){
-    const history = (S_eventRounds||[])
-      .flatMap(r=>(r.matches||[]).filter(m=>!m.isBye&&m.status==='confirmed')
-        .map(m=>({...m,roundNumber:r.roundNumber})))
-      .reverse();
+    // Group by round — ordered round 1 first (chronological)
+    const rounds = (S_eventRounds||[])
+      .filter(r=>(r.matches||[]).some(m=>!m.isBye&&m.status==='confirmed'))
+      .sort((a,b)=>a.roundNumber-b.roundNumber);
 
-    hEl.innerHTML = !history.length
-      ? `<div style="color:rgba(255,255,255,0.3);font-size:13px;margin-top:20px;">No completed matches yet</div>`
-      : `<div style="max-width:640px;margin:0 auto;">
-          ${history.map(m=>{
-            const aWon = m.scoreA > m.scoreB;
-            return `<div style="display:grid;grid-template-columns:32px 1fr auto 1fr;gap:10px;
-              align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <div style="font-size:9px;color:rgba(255,255,255,0.25);text-align:center;">R${m.roundNumber}</div>
-              <div style="font-size:12px;color:${aWon?'#fff':'rgba(255,255,255,0.35)'};">${m.teamANames}</div>
-              <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;
-                color:#F5C842;text-align:center;white-space:nowrap;">${m.scoreA}–${m.scoreB}</div>
-              <div style="font-size:12px;text-align:right;color:${!aWon?'#fff':'rgba(255,255,255,0.35)'};">${m.teamBNames}</div>
-            </div>`;
-          }).join('')}
-        </div>`;
+    if(!rounds.length){
+      hEl.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:13px;margin-top:20px;">No completed matches yet</div>';
+    } else {
+      hEl.innerHTML = `<div style="max-width:640px;margin:0 auto;">
+        ${rounds.map(r=>{
+          const matches = (r.matches||[]).filter(m=>!m.isBye&&m.status==='confirmed');
+          const roundComplete = (r.matches||[]).filter(m=>!m.isBye).every(m=>m.status==='confirmed');
+          return `
+            <!-- Round header — always expanded -->
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 0 8px;
+              border-bottom:1px solid rgba(245,200,66,0.2);margin-bottom:4px;">
+              <div style="font-size:10px;font-weight:700;color:rgba(245,200,66,0.8);
+                letter-spacing:2px;text-transform:uppercase;">Round ${r.roundNumber}</div>
+              ${roundComplete
+                ? '<div style="font-size:9px;color:#4ade80;letter-spacing:1px;">✓ COMPLETE</div>'
+                : '<div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px;">IN PROGRESS</div>'}
+            </div>
+            <!-- Matches in this round -->
+            ${matches.map(m=>{
+              const aWon = m.scoreA > m.scoreB;
+              const draw = m.scoreA === m.scoreB;
+              return `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;
+                align-items:center;padding:10px 8px;margin-bottom:4px;
+                background:rgba(255,255,255,0.03);border-radius:8px;">
+                <!-- Team A -->
+                <div>
+                  ${m.teamANames.split(' & ').map(n=>`
+                    <div style="font-size:12px;font-weight:${aWon?'700':'400'};
+                      color:${aWon?'#fff':draw?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.35)'};
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${aWon?'🏆 ':''}${n}
+                    </div>`).join('')}
+                </div>
+                <!-- Score -->
+                <div style="text-align:center;">
+                  <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;
+                    color:#F5C842;white-space:nowrap;">${m.scoreA}–${m.scoreB}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:2px;">
+                    Court ${m.court||'?'}
+                  </div>
+                </div>
+                <!-- Team B -->
+                <div style="text-align:right;">
+                  ${m.teamBNames.split(' & ').map(n=>`
+                    <div style="font-size:12px;font-weight:${!aWon&&!draw?'700':'400'};
+                      color:${!aWon&&!draw?'#fff':draw?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.35)'};
+                      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      ${n}${!aWon&&!draw?' 🏆':''}
+                    </div>`).join('')}
+                </div>
+              </div>`;
+            }).join('')}
+            <div style="height:12px;"></div>`;
+        }).join('')}
+      </div>`;
+    }
   }
 }
 
