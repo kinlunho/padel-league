@@ -161,6 +161,12 @@ async function renderMyProfile(){
       }
     </div>
 
+    <!-- Event participation (loaded async below) -->
+    <div class="card" id="profile-events-card" style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">🎾 Events Played</div>
+      <div id="profile-events-content" style="color:var(--muted);font-size:12px;font-style:italic;">Loading...</div>
+    </div>
+
     <!-- Match History -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -180,6 +186,55 @@ async function renderMyProfile(){
   // Store for toggle
   S._profileMatches = allMatches;
   S._profileTeamId  = myTeamId;
+
+  // Load events async — doesn't block initial render
+  loadProfileEvents(uid);
+}
+
+// ── Profile events loader ────────────────────────────────────────────────────
+
+async function loadProfileEvents(uid){
+  const card = document.getElementById('profile-events-content');
+  if(!card) return;
+
+  try {
+    const events = await EventsDB.listByParticipant(uid);
+    if(!events.length){
+      card.innerHTML = '<span style="font-style:italic;">No events yet — join a Mexicano or Americano to see your event history here.</span>';
+      return;
+    }
+
+    const formatIcon = {mexicano:'🔄',americano:'🤝',king:'👑'};
+    const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
+
+    card.innerHTML = events.map(e => {
+      const s = e.standings?.[uid];
+      const pos = s ? Object.values(e.standings)
+        .filter(p=>!p.withdrawn)
+        .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
+        .findIndex(p=>p.uid===uid) + 1 : null;
+      const total = s ? Object.values(e.standings).filter(p=>!p.withdrawn).length : null;
+      const medal = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':null;
+
+      return `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:20px;flex-shrink:0;">${formatIcon[e.type]||'🎾'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.name}</div>
+          <div style="font-size:10px;color:var(--muted);">${formatLabel[e.type]||e.type} · ${e.date||'—'} · Round ${e.currentRound||0}${e.totalRounds?' of '+e.totalRounds:''}</div>
+        </div>
+        ${s ? `<div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--brand);">${medal||'#'+pos} of ${total}</div>
+          <div style="font-size:10px;color:var(--muted);">${s.points} pts · ${s.played} matches</div>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(err){
+    if(err.message?.includes('index')){
+      card.innerHTML = '<span style="color:var(--warn);font-size:11px;">⚠ Firestore index required for events query. Create index: events → participants (array) + date (desc).</span>';
+    } else {
+      card.innerHTML = `<span style="color:var(--muted);font-size:12px;">Could not load events: ${err.message}</span>`;
+    }
+  }
 }
 
 function renderMatchHistoryRows(matches, myTeamId){

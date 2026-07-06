@@ -171,6 +171,7 @@ async function mexicanoEnterScore(eventId, roundNumber, matchId, scoreA, scoreB)
   const standingsMap = {};
   standings.forEach(s=>{ standingsMap[s.uid]=s; });
   await EventsDB.update(eventId, {
+    participants: (event.players||[]).map(p=>p.uid).filter(Boolean),
     standings: standingsMap,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp() // triggers parent subscription
   });

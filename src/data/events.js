@@ -12,7 +12,8 @@ const EventsDB = {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       status: 'open',      // open | active | complete
       currentRound: 0,
-      standings: {}        // {uid: {points, gamesWon, gamesLost, played, withdrawn}}
+      standings: {},       // {uid: {points, gamesWon, gamesLost, played, withdrawn}}
+      participants: (data.players||[]).map(p=>p.uid).filter(Boolean),
     });
     return id;
   },
@@ -36,6 +37,14 @@ const EventsDB = {
 
   async listAll(){
     const snap = await db.collection('events')
+      .orderBy('date','desc')
+      .limit(50).get();
+    return snap.docs.map(d=>({id:d.id,...d.data()}));
+  },
+
+  async listByParticipant(uid){
+    const snap = await db.collection('events')
+      .where('participants','array-contains',uid)
       .orderBy('date','desc')
       .limit(50).get();
     return snap.docs.map(d=>({id:d.id,...d.data()}));
