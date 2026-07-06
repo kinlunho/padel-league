@@ -17,6 +17,15 @@ function renderEventsPage(){
 
 // ── Events list ───────────────────────────────────────────────────────────────
 
+// Safe scoreFormat reader — handles both flat {type,target} and nested {scoreFormat:{...},hardCap} structures
+function sfTarget(e){ return e.scoreFormat?.target || e.scoreFormat?.scoreFormat?.target || 16; }
+function sfType(e){ return e.scoreFormat?.type || e.scoreFormat?.scoreFormat?.type || 'games'; }
+function sfHardCap(e){ return e.scoreFormat?.hardCap || 20; }
+function sfLabel(e){
+  const t = sfType(e); const v = sfTarget(e);
+  return t==='games'?`First to ${v}`:`${v} min`;
+}
+
 function renderEventsList(container){
   const events = Object.values(S.events||{})
     .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -808,7 +817,7 @@ async function createPadelEvent(){
 
   const eventId = await EventsDB.create({
     name, type, date, courts, totalRounds:rounds,
-    players, scoreFormat:{ ...scoreFormat, hardCap }, variant, season: ACTIVE_SEASON,
+    players, scoreFormat: Object.assign({}, scoreFormat, {hardCap}), variant, season: ACTIVE_SEASON,
     queueVariant, pairMode, winCap, pairs
   });
 
