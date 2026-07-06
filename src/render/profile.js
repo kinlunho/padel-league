@@ -39,17 +39,31 @@ async function renderMyProfile(){
   const profile = await PlayersDB.getProfile(uid);
   if(!profile){ container.innerHTML='<div style="color:var(--muted);">Profile not found.</div>'; return; }
 
-  // Get team and match stats
+  // Get team and match stats — league matches
   const myTeamId = S.myTeamId;
   const team = myTeamId ? S.teams[myTeamId] : null;
-  const allMatches = Object.values(S.matches).filter(m =>
+  const leagueMatches = Object.values(S.matches).filter(m =>
     myTeamId && (m.t1===myTeamId||m.t2===myTeamId) && m.status==='confirmed'
   ).sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
-  const wins   = allMatches.filter(m => { const r=calcResult(m.scoreData); return r&&((r.result==='win1'&&m.t1===myTeamId)||(r.result==='win2'&&m.t2===myTeamId)); }).length;
-  const draws  = allMatches.filter(m => { const r=calcResult(m.scoreData); return r&&r.result==='draw'; }).length;
-  const losses = allMatches.length - wins - draws;
-  const winRate = allMatches.length ? Math.round((wins/allMatches.length)*100) : 0;
+  // Event games — find from OPPR history (format != 'league')
+  const oplrHistory = profile.oplrHistory || [];
+  const eventGames = oplrHistory.filter(h => h.format && h.format !== 'league');
+  const eventWins   = eventGames.filter(h => h.opponent === 'win').length;
+  const eventLosses = eventGames.filter(h => h.opponent === 'loss').length;
+  const eventDraws  = eventGames.filter(h => h.opponent === 'draw').length;
+
+  // Combined stats
+  const leagueWins   = leagueMatches.filter(m => { const r=calcResult(m.scoreData); return r&&((r.result==='win1'&&m.t1===myTeamId)||(r.result==='win2'&&m.t2===myTeamId)); }).length;
+  const leagueDraws  = leagueMatches.filter(m => { const r=calcResult(m.scoreData); return r&&r.result==='draw'; }).length;
+  const leagueLosses = leagueMatches.length - leagueWins - leagueDraws;
+
+  const wins   = leagueWins   + eventWins;
+  const losses = leagueLosses + eventLosses;
+  const draws  = leagueDraws  + eventDraws;
+  const allMatches = leagueMatches; // keep for match history display
+  const totalPlayed = leagueMatches.length + eventGames.length;
+  const winRate = totalPlayed ? Math.round((wins/totalPlayed)*100) : 0;
 
   const hand     = profile.hand     || null;
   const position = profile.position || null;
@@ -150,16 +164,46 @@ async function renderMyProfile(){
     <!-- Stats -->
     <div class="card" style="margin-bottom:16px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:12px;">📊 Season Stats</div>
-      ${allMatches.length
+      ${totalPlayed
         ? `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;">
-            <div><div style="font-size:24px;font-weight:700;color:var(--text-primary);">${allMatches.length}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Played</div></div>
+            <div><div style="font-size:24px;font-weight:700;color:var(--text-primary);">${totalPlayed}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Played</div></div>
             <div><div style="font-size:24px;font-weight:700;color:var(--accent);">${wins}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Won</div></div>
             <div><div style="font-size:24px;font-weight:700;color:var(--red);">${losses}</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Lost</div></div>
             <div><div style="font-size:24px;font-weight:700;color:var(--brand);">${winRate}%</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Win Rate</div></div>
-          </div>`
+          </div>
+          ${eventGames.length?`<div style="margin-top:8px;font-size:10px;color:var(--muted);">
+            League: ${leagueMatches.length} · Events: ${eventGames.length} (${eventWins}W ${eventLosses}L)
+          </div>`:''}
+          `
         : '<div style="color:var(--muted);font-size:12px;font-style:italic;">No confirmed matches yet this season.</div>'
       }
     </div>
+
+    <!-- Event game history from OPLR -->
+    ${eventGames.length ? `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:12px;">🎾 Event Match History</div>
+      ${eventGames.slice().reverse().slice(0,5).map(h => {
+        const fmtIcon = h.format==='mexicano'?'🔄':h.format==='americano'?'🤝':'👑';
+        const won = h.opponent==='win';
+        const lost = h.opponent==='loss';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="width:24px;height:24px;border-radius:50%;background:${won?'var(--accent)':lost?'var(--red)':'var(--muted)'};
+            display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;flex-shrink:0;">
+            ${won?'W':lost?'L':'D'}
+          </div>
+          <div style="font-size:18px;flex-shrink:0;">${fmtIcon}</div>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;">OPPR ${h.oplr?.toFixed(2)||'—'}</div>
+            <div style="font-size:10px;color:var(--muted);">${h.date||'—'} · ${h.format}</div>
+          </div>
+          <div style="font-size:12px;font-family:'Space Mono',monospace;
+            color:${h.delta>0?'var(--accent)':h.delta<0?'var(--red)':'var(--muted)'};">
+            ${h.delta>0?'+':''}${h.delta?.toFixed(2)||'0'}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
 
     <!-- Event participation (loaded async below) -->
     <div class="card" id="profile-events-card" style="margin-bottom:16px;">

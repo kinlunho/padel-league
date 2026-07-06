@@ -354,13 +354,12 @@ if (!IS_LOCAL_DEV){
       // slow network), render after 4s rather than spinning forever.
       const readyTimer = setTimeout(() => {
         if(!S.appReady){
-          console.warn('App ready timeout — rendering with available data');
           S.appReady = true;
           const skel = document.getElementById('app-skeleton');
           if(skel) skel.style.display = 'none';
           renderPage(document.querySelector('.page.active')?.id.replace('page-','') || 'home');
         }
-      }, 4000);
+      }, 2000);
 
       function tryReady(){
         if(configReady && teamsReady && !S.appReady){
