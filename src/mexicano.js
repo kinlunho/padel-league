@@ -585,89 +585,116 @@ async function kingEnterScore(eventId, courtId, scoreA, scoreB){
     standings[lId].consecutiveWins = 0;
   }
 
-  // Queue management by variant
+  // ── Queue management ─────────────────────────────────────────────────────────
+  // Model A — Hierarchical:
+  //   Challenger winner sets court.pendingChallenger and waits
+  //   When King resolves, King winner faces pendingChallenger
+  //   Loser always goes to back of queue
+  //   Challenger court then refills from queue for next challenger cycle
+
   const winnerConsecWins = standings[wId]?.consecutiveWins||0;
   const capReached = court.courtType==='king' && winnerConsecWins >= winCap;
 
+  // Helper to set a court playing
+  const setPairs = (c, pA, pB) => {
+    c.currentPairA = pA; c.currentPairB = pB;
+    c.teamA = [pA.uid1,pA.uid2].filter(Boolean);
+    c.teamB = [pB.uid1,pB.uid2].filter(Boolean);
+    c.scoreA = 0; c.scoreB = 0; c.status = 'playing';
+    c.pendingChallenger = null;
+  };
+
   if(queueMode === 'rotational'){
-    // Both pairs leave, queue gets next two
-    queue.push({...loserPair, consecutiveWins:0});
-    // Split winning pair — each goes to back of queue with new random partner
-    // For simplicity: both winners go back as a pair (full rotational requires partner tracking)
+    // Both pairs rotate out regardless of result
     queue.push({...winnerPair, consecutiveWins:0});
+    queue.push({...loserPair,  consecutiveWins:0});
     court.status = 'waiting';
     court.currentPairA = null;
     court.currentPairB = null;
+    court.pendingChallenger = null;
 
-  } else if(queueMode === 'winners-stay' && !capReached && court.courtType!=='king'){
-    // Challenger court: winner stays, loser goes to back of lowest challenger queue
+  } else if(court.courtType === 'challenger'){
+    // ── CHALLENGER COURT resolved ──────────────────────────────────────────
+    // Loser goes to back of queue
     queue.push({...loserPair, consecutiveWins:0});
-    // Winner stays — bring next from queue as new challenger
-    if(queue.length >= 1){
-      const nextChallenger = queue.shift();
-      const isWinnerA = winnerSide==='A';
-      court.currentPairA = isWinnerA ? winnerPair : nextChallenger;
-      court.currentPairB = isWinnerA ? nextChallenger : winnerPair;
-      court.teamA = court.currentPairA.uid1?[court.currentPairA.uid1,court.currentPairA.uid2].filter(Boolean):[];
-      court.teamB = court.currentPairB.uid1?[court.currentPairB.uid1,court.currentPairB.uid2].filter(Boolean):[];
-      court.scoreA = 0; court.scoreB = 0;
-      court.status = 'playing';
+
+    // Check if King Court is currently waiting (finished before us)
+    const kingCourt = courts.find(c=>c.courtType==='king');
+
+    if(kingCourt && kingCourt.status==='waiting'){
+      // King is ready — challenger winner challenges immediately
+      const kingWinner = kingCourt.pendingChallenger; // king's previous winner waiting
+      if(kingWinner){
+        // King had a winner waiting — now we have our challenger
+        setPairs(kingCourt, kingWinner, winnerPair);
+        kingCourt.status = 'playing';
+        kingCourt.consecutiveWins = 0;
+        // Refill this challenger court from queue
+        if(queue.length >= 2){
+          setPairs(court, queue.shift(), queue.shift());
+        } else {
+          court.status = 'waiting';
+          court.currentPairA = null; court.currentPairB = null;
+          court.pendingChallenger = null;
+        }
+      } else {
+        // King waiting with no pending winner — challenger winner goes to king
+        setPairs(kingCourt, winnerPair, queue.length>=1 ? queue.shift() : winnerPair);
+        if(queue.length >= 2){
+          setPairs(court, queue.shift(), queue.shift());
+        } else {
+          court.status = 'waiting';
+          court.pendingChallenger = null;
+        }
+      }
     } else {
+      // King is still playing — challenger winner parks as pendingChallenger
       court.status = 'waiting';
+      court.currentPairA = null; court.currentPairB = null;
+      court.pendingChallenger = {...winnerPair};
     }
 
   } else {
-    // King court winners-stay OR cap reached OR waiting-list:
+    // ── KING COURT resolved ────────────────────────────────────────────────
     // Loser goes to back of queue
     queue.push({...loserPair, consecutiveWins:0});
 
     if(capReached){
-      // Cap reached — winner also vacates, goes back to queue
+      // Winner cap reached — both leave, King waits for challenger
       queue.push({...winnerPair, consecutiveWins:0});
       if(standings[wId]) standings[wId].consecutiveWins = 0;
       court.status = 'waiting';
-      court.currentPairA = null;
-      court.currentPairB = null;
+      court.currentPairA = null; court.currentPairB = null;
+      court.pendingChallenger = null;
     } else {
-      // Promotion from top challenger court
-      const topChallenger = courts
-        .filter(c=>c.courtType==='challenger')
+      // Check if a challenger court has a pending winner waiting
+      const challWithPending = courts
+        .filter(c=>c.courtType==='challenger' && c.pendingChallenger)
         .sort((a,b)=>a.level-b.level)[0];
 
-      if(topChallenger && topChallenger.status==='waiting' && queue.length>=1){
-        // Challenger court has a winner waiting to challenge
-        const challenger = queue.shift();
-        const isWinnerA = winnerSide==='A';
-        court.currentPairA = isWinnerA ? winnerPair : challenger;
-        court.currentPairB = isWinnerA ? challenger : winnerPair;
-        court.teamA = court.currentPairA.uid1?[court.currentPairA.uid1,court.currentPairA.uid2].filter(Boolean):[];
-        court.teamB = court.currentPairB.uid1?[court.currentPairB.uid1,court.currentPairB.uid2].filter(Boolean):[];
-        court.scoreA = 0; court.scoreB = 0;
-        court.status = 'playing';
+      if(challWithPending){
+        // Use the challenger winner who's been waiting
+        const challenger = challWithPending.pendingChallenger;
+        setPairs(court, winnerPair, challenger);
+        challWithPending.pendingChallenger = null;
+        // Refill challenger court from queue
+        if(queue.length >= 2){
+          setPairs(challWithPending, queue.shift(), queue.shift());
+        } else {
+          challWithPending.status = 'waiting';
+          challWithPending.currentPairA = null;
+          challWithPending.currentPairB = null;
+        }
       } else if(queue.length >= 1){
-        const nextChallenger = queue.shift();
-        const isWinnerA = winnerSide==='A';
-        court.currentPairA = isWinnerA ? winnerPair : nextChallenger;
-        court.currentPairB = isWinnerA ? nextChallenger : winnerPair;
-        court.teamA = court.currentPairA.uid1?[court.currentPairA.uid1,court.currentPairA.uid2].filter(Boolean):[];
-        court.teamB = court.currentPairB.uid1?[court.currentPairB.uid1,court.currentPairB.uid2].filter(Boolean):[];
-        court.scoreA = 0; court.scoreB = 0;
-        court.status = 'playing';
+        // No pending challenger — pull next from queue
+        const next = queue.shift();
+        setPairs(court, winnerPair, next);
       } else {
+        // No challengers available — King waits with winner parked
         court.status = 'waiting';
+        court.pendingChallenger = {...winnerPair};
+        court.currentPairA = null; court.currentPairB = null;
       }
-    }
-  }
-
-  // Refill empty challenger courts from queue
-  for(const c of courts.filter(ct=>ct.courtType==='challenger'&&ct.status==='waiting')){
-    if(queue.length >= 2){
-      const pA = queue.shift();
-      const pB = queue.shift();
-      c.currentPairA = pA; c.currentPairB = pB;
-      c.teamA = [pA.uid1,pA.uid2].filter(Boolean);
-      c.teamB = [pB.uid1,pB.uid2].filter(Boolean);
-      c.scoreA = 0; c.scoreB = 0; c.status = 'playing';
     }
   }
 

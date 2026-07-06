@@ -286,7 +286,9 @@ function renderKingCourtUI(e){
     const label  = isKing ? '👑 KING COURT' : `⚔ CHALLENGER ${court.level}`;
     const liveTag = court.status==='playing'
       ? `<span style="font-size:10px;color:var(--accent);">● LIVE</span>`
-      : `<span style="font-size:10px;color:var(--muted);">○ WAITING</span>`;
+      : court.pendingChallenger
+        ? `<span style="font-size:10px;color:var(--gold);">⏳ CHALLENGER READY</span>`
+        : `<span style="font-size:10px;color:var(--muted);">○ WAITING</span>`;
 
     let body = '';
     if(court.status==='playing'){
@@ -307,6 +309,11 @@ function renderKingCourtUI(e){
           <span style="font-size:9px;color:var(--muted);">to ${target}, cap ${hardCap}</span>
         </div>`;
       }
+    } else if(court.pendingChallenger){
+      body = `<div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:4px;">
+        ⏳ ${court.pendingChallenger.name}
+      </div>
+      <div style="font-size:11px;color:var(--muted);">Challenger ready — waiting for King Court to finish</div>`;
     } else {
       body = `<div style="font-size:12px;color:var(--muted);font-style:italic;">Waiting for next pair...</div>`;
     }
