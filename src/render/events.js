@@ -211,6 +211,51 @@ function renderEventDetail(container){
         </div>`).join('')}
     </div>`:''}
 
+    <!-- Past rounds (admin) — collapsed, with edit buttons -->
+    ${isAdminUser()&&S_eventRounds.length>1?`
+    <div style="margin-top:16px;">
+      <details>
+        <summary style="cursor:pointer;font-weight:700;font-size:13px;margin-bottom:8px;
+          list-style:none;display:flex;align-items:center;gap:8px;">
+          <span style="color:var(--brand);">▸</span>
+          Past Rounds (admin edit)
+          <span style="font-size:10px;color:var(--muted);font-weight:400;">— tap to expand</span>
+        </summary>
+        ${S_eventRounds
+          .filter(r=>r.roundNumber<e.currentRound)
+          .sort((a,b)=>b.roundNumber-a.roundNumber)
+          .map(r=>`
+          <div style="margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+              letter-spacing:1px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);">
+              Round ${r.roundNumber}
+            </div>
+            ${(r.matches||[]).filter(m=>!m.isBye).map(m=>`
+              <div class="card" style="margin-bottom:8px;border-left:3px solid ${m.status==='confirmed'?'var(--accent)':'var(--muted)'};">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Court ${m.court||'?'}</div>
+                <div style="font-weight:600;font-size:13px;">${m.teamANames}</div>
+                <div style="font-size:11px;color:var(--muted);margin:2px 0;">vs</div>
+                <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${m.teamBNames}</div>
+                ${m.status==='confirmed'
+                  ?`<div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;
+                        color:var(--accent);">${m.scoreA} – ${m.scoreB}</span>
+                      <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;"
+                        onclick="openEventScoreEdit('${e.id}',${r.roundNumber},'${m.matchId}',${m.scoreA},${m.scoreB},${e.scoreFormat?.target||0})">
+                        ✎ Edit
+                      </button>
+                    </div>`
+                  :`<span style="font-size:11px;color:var(--muted);">Not yet scored</span>`
+                }
+              </div>`).join('')}
+            ${(r.matches||[]).filter(m=>m.isBye).map(m=>`
+              <div style="font-size:11px;color:var(--muted);padding:4px 0;">
+                ⏸ ${m.byeNames||''} sat out
+              </div>`).join('')}
+          </div>`).join('')}
+      </details>
+    </div>`:''}
+
     <!-- Players list (admin) -->
     ${isAdminUser()?`
     <div style="margin-top:16px;">
