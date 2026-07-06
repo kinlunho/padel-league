@@ -973,7 +973,9 @@ function renderLeaderboard(eventId, overlay){
       padding:16px 24px;border-bottom:2px solid rgba(245,200,66,0.25);flex-shrink:0;">
       <div>
         <div style="font-size:10px;color:rgba(245,200,66,0.6);letter-spacing:3px;margin-bottom:3px;">
-          ${formatLabel[e.type]||'EVENT'} · ROUND ${e.currentRound||0}${e.totalRounds?' OF '+e.totalRounds:''}
+          ${formatLabel[e.type]||'EVENT'} · ${e.type==='king'
+            ? `${(e.games||[]).length} GAMES PLAYED`
+            : `ROUND ${e.currentRound||0}${e.totalRounds?' OF '+e.totalRounds:''}`}
         </div>
         <div style="font-size:22px;font-weight:700;color:#fff;">${e.name}</div>
       </div>
@@ -1067,6 +1069,60 @@ function lbRenderAll(eventId){
   // ── Courts (current + next) ──
   const cEl = document.getElementById('lb-view-courts');
   if(cEl){
+    // King of the Court: read from e.courts directly (no rounds)
+    if(isKing){
+      const kingCourts = (e.courts||[]).sort((a,b)=>a.level-b.level);
+      const queue = e.queue||[];
+      cEl.innerHTML = kingCourts.map(court=>{
+        const isKingCourt = court.courtType==='king';
+        const color = isKingCourt?'#F5C842':'#6366f1';
+        const label = isKingCourt?'👑 KING COURT':`⚔ CHALLENGER ${court.level}`;
+        const statusLabel = court.status==='playing'
+          ? '<span style="color:#4ade80;font-size:10px;">● LIVE</span>'
+          : court.pendingChallenger
+            ? '<span style="color:#F5C842;font-size:10px;">⏳ CHALLENGER READY</span>'
+            : '<span style="color:rgba(255,255,255,0.3);font-size:10px;">○ WAITING</span>';
+
+        let body = '';
+        if(court.status==='playing'){
+          const pA = court.currentPairA?.name||'—';
+          const pB = court.currentPairB?.name||'—';
+          body = `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-top:12px;">
+            <div>${pA.split(' & ').map(n=>`<div style="font-size:18px;font-weight:700;color:#fff;">${n}</div>`).join('')}</div>
+            <div style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.2);text-align:center;">VS</div>
+            <div style="text-align:right;">${pB.split(' & ').map(n=>`<div style="font-size:18px;font-weight:700;color:#fff;">${n}</div>`).join('')}</div>
+          </div>`;
+        } else if(court.pendingChallenger){
+          body = `<div style="margin-top:10px;">
+            <div style="font-size:14px;color:#F5C842;font-weight:700;">${court.pendingChallenger.name}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);">Waiting to challenge King Court</div>
+          </div>`;
+        } else {
+          body = `<div style="font-size:13px;color:rgba(255,255,255,0.3);margin-top:10px;font-style:italic;">Waiting for next pair...</div>`;
+        }
+
+        return `<div style="background:rgba(255,255,255,0.04);border:1px solid ${color}44;border-radius:12px;
+          padding:20px 24px;margin-bottom:12px;max-width:600px;margin-left:auto;margin-right:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:2px;">${label}</div>
+            ${statusLabel}
+          </div>
+          ${body}
+        </div>`;
+      }).join('')
+      + (queue.length ? `<div style="max-width:600px;margin:16px auto 0;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-bottom:8px;">QUEUE</div>
+        ${queue.map((p,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;
+          border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:11px;color:rgba(255,255,255,0.3);width:20px;">${i+1}</div>
+          <div style="font-size:13px;color:${i===0?'#4ade80':'rgba(255,255,255,0.6)'};">${p.name}</div>
+          ${i===0?'<span style="font-size:10px;color:#4ade80;">Next up</span>':''}
+        </div>`).join('')}
+      </div>` : '');
+      // Skip round-based rendering
+      return;
+    }
+
     const renderCourts = (round, label) => {
       if(!round) return `<div style="color:rgba(255,255,255,0.3);font-size:13px;margin-bottom:8px;">${label}</div>`;
       const active = (round.matches||[]).filter(m=>!m.isBye);
@@ -1114,6 +1170,28 @@ function lbRenderAll(eventId){
   // ── History ──
   const hEl = document.getElementById('lb-view-history');
   if(hEl){
+    // King of the Court: read from e.games[] directly
+    if(isKing){
+      const games = [...(e.games||[])].reverse();
+      hEl.innerHTML = !games.length
+        ? `<div style="color:rgba(255,255,255,0.3);font-size:13px;margin-top:20px;">No completed games yet</div>`
+        : `<div style="max-width:640px;margin:0 auto;">
+            ${games.map((g,i)=>{
+              const aWon = g.winner==='A';
+              const icon = g.courtType==='king'?'👑':'⚔';
+              return `<div style="display:grid;grid-template-columns:28px 1fr auto 1fr;gap:10px;
+                align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:12px;">${icon}</div>
+                <div style="font-size:12px;color:${aWon?'#fff':'rgba(255,255,255,0.35)'};">${g.teamA}</div>
+                <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;
+                  color:#F5C842;text-align:center;white-space:nowrap;">${g.scoreA}–${g.scoreB}</div>
+                <div style="font-size:12px;text-align:right;color:${!aWon?'#fff':'rgba(255,255,255,0.35)'};">${g.teamB}</div>
+              </div>`;
+            }).join('')}
+          </div>`;
+      return;
+    }
+
     // Group by round — ordered round 1 first (chronological)
     const rounds = (S_eventRounds||[])
       .filter(r=>(r.matches||[]).some(m=>!m.isBye&&m.status==='confirmed'))
