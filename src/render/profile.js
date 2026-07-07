@@ -120,6 +120,16 @@ async function renderMyProfile(){
               <option value="right" ${position==='right'?'selected':''}>Right side</option>
             </select>
           </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">NPRP Rating</div>
+            <select class="form-select" id="pref-nprp" style="font-size:12px;width:100px;" onchange="saveProfilePrefs()">
+              <option value="">Not set</option>
+              ${[1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0].map(v=>
+                `<option value="${v}" ${parseFloat(currentNPRP)===v?'selected':''}>${v}</option>`
+              ).join('')}
+            </select>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px;">Your WPR/national rating</div>
+          </div>
         </div>
         <div id="prefs-status" style="font-size:10px;color:var(--accent);margin-top:6px;min-height:14px;"></div>
       </div>
@@ -281,6 +291,23 @@ async function loadProfileEvents(uid){
   }
 }
 
+async function adminSetNprp(uid, selectId){
+  if(!isAdminUser()){ showToast('Admin only',true); return; }
+  const val = parseFloat(document.getElementById(selectId)?.value);
+  if(!val){ showToast('Select an NPRP value',true); return; }
+  try {
+    await db.collection('players').doc(uid).update({
+      selfReportedNprp: val,
+      nprpHistory: firebase.firestore.FieldValue.arrayUnion({
+        nprp: val, season: ACTIVE_SEASON,
+        date: new Date().toISOString().split('T')[0],
+        division: 'Admin-set'
+      })
+    });
+    showToast(`NPRP set to ${val}`);
+  } catch(err){ showToast('Failed: '+err.message, true); }
+}
+
 function renderMatchHistoryRows(matches, myTeamId){
   if(!matches.length) return '<div style="color:var(--muted);font-size:12px;font-style:italic;">No matches yet.</div>';
   return matches.map(m => {
@@ -340,8 +367,22 @@ async function saveProfilePrefs(){
   if(!uid) return;
   const hand     = document.getElementById('pref-hand')?.value     || null;
   const position = document.getElementById('pref-position')?.value || null;
+  const nprpVal  = document.getElementById('pref-nprp')?.value;
+  const nprp     = nprpVal ? parseFloat(nprpVal) : null;
   try {
-    await PlayersDB.updateProfile(uid, { hand, position });
+    const updates = { hand, position };
+    if(nprp) updates.selfReportedNprp = nprp;
+    await PlayersDB.updateProfile(uid, updates);
+    // Also update nprpHistory on player doc for OPPR seeding
+    if(nprp){
+      await db.collection('players').doc(uid).update({
+        nprpHistory: firebase.firestore.FieldValue.arrayUnion({
+          nprp, season: ACTIVE_SEASON,
+          date: new Date().toISOString().split('T')[0],
+          division: 'Self-reported'
+        })
+      });
+    }
     const st = document.getElementById('prefs-status');
     if(st){ st.textContent='Saved ✓'; setTimeout(()=>{ st.textContent=''; },2000); }
   } catch(err){ showToast('Failed to save: '+err.message, true); }
@@ -624,6 +665,18 @@ async function viewPlayerProfile(uid){
             ${profile.hand?`<span style="font-size:11px;color:var(--muted);">${profile.hand==='right'?'Right':'Left'} hand</span>`:''}
             ${profile.position?`<span style="font-size:11px;color:var(--muted);">${profile.position.charAt(0).toUpperCase()+profile.position.slice(1)} side</span>`:''}
           </div>
+          ${isAdminUser()?`
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <span style="font-size:10px;color:var(--muted);text-transform:uppercase;">Set NPRP:</span>
+            <select class="form-select" id="admin-nprp-${uid}" style="font-size:12px;width:90px;">
+              <option value="">—</option>
+              ${[1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0].map(v=>
+                '<option value="'+v+'" '+(parseFloat(nprp)===v?'selected':'')+'>'+v+'</option>'
+              ).join('')}
+            </select>
+            <button class="btn btn-ghost btn-sm" style="font-size:11px;"
+              onclick="adminSetNprp('${uid}','admin-nprp-${uid}')">Save</button>
+          </div>`:''}
         </div>
       </div>
     </div>
