@@ -72,7 +72,7 @@ async function renderMyProfile(){
 
   // My player record from roster (for current NPRP)
   const myPlayerRecord = team?.players?.find(p => p.claimedByEmail === S.userEmail);
-  const currentNPRP = myPlayerRecord?.nprp || null;
+  const currentNPRP = myPlayerRecord?.nprp || profile.nprp || profile.selfReportedNprp || null;
 
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;margin-bottom:24px;flex-wrap:wrap;">
@@ -118,6 +118,7 @@ async function renderMyProfile(){
               <option value="">Not set</option>
               <option value="left"  ${position==='left' ?'selected':''}>Left side</option>
               <option value="right" ${position==='right'?'selected':''}>Right side</option>
+              <option value="both"  ${position==='both' ?'selected':''}>Both</option>
             </select>
           </div>
           <div>
@@ -298,6 +299,7 @@ async function adminSetNprp(uid, selectId){
   try {
     await db.collection('players').doc(uid).update({
       selfReportedNprp: val,
+      nprp: val,
       nprpHistory: firebase.firestore.FieldValue.arrayUnion({
         nprp: val, season: ACTIVE_SEASON,
         date: new Date().toISOString().split('T')[0],
@@ -371,9 +373,8 @@ async function saveProfilePrefs(){
   const nprp     = nprpVal ? parseFloat(nprpVal) : null;
   try {
     const updates = { hand, position };
-    if(nprp) updates.selfReportedNprp = nprp;
+    if(nprp){ updates.selfReportedNprp = nprp; updates.nprp = nprp; }
     await PlayersDB.updateProfile(uid, updates);
-    // Also update nprpHistory on player doc for OPPR seeding
     if(nprp){
       await db.collection('players').doc(uid).update({
         nprpHistory: firebase.firestore.FieldValue.arrayUnion({
@@ -627,7 +628,7 @@ async function viewPlayerProfile(uid){
     t.season===ACTIVE_SEASON && t.players?.some(p=>p.claimedByEmail===profile.email)
   );
   const playerRecord = team?.players?.find(p=>p.claimedByEmail===profile.email);
-  const nprp = playerRecord?.nprp||null;
+  const nprp = playerRecord?.nprp || profile.nprp || profile.selfReportedNprp || null;
   const nprpHistory=(profile.nprpHistory||[]).sort((a,b)=>a.season.localeCompare(b.season));
   const myTeamId = team?.id;
 
