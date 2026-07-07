@@ -535,115 +535,30 @@ async function mexicanoEndEvent(eventId){
 
 // ── Create event modal ────────────────────────────────────────────────────────
 
-// ── Event player picker ───────────────────────────────────────────────────────
-// Selected players stored as array of {uid, name, email, nprp} objects
+// ── Event player picker — delegates to shared player-picker.js ───────────────
 
-let _evSelectedPlayers = [];
+let _evSelectedPlayers = []; // kept for backward compatibility with createPadelEvent/saveEditEvent
+let _evPicker = null;        // shared picker instance
 
-async function initEventPlayerPicker(){
-  const picker = document.getElementById('ev-player-picker');
-  if(!picker) return;
-  picker.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px;">Loading players...</div>';
-
-  try {
-    const players = await PlayersDB.listAll();
-    // Enrich with NPRP from team roster
-    const enriched = players.map(p => {
-      const team = Object.values(S.teams).find(t =>
-        t.season===ACTIVE_SEASON && t.players?.some(pl=>pl.claimedByEmail===p.email)
-      );
-      const pr = team?.players?.find(pl=>pl.claimedByEmail===p.email);
-      return { ...p, nprp: parseFloat(pr?.nprp)||3.5, teamName: team?.name||'' };
-    });
-    picker._allPlayers = enriched;
-    renderEventPlayerPicker(enriched);
-  } catch(err){
-    picker.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px;">No players in directory yet.</div>';
-  }
-}
-
-function renderEventPlayerPicker(players){
-  const picker = document.getElementById('ev-player-picker');
-  if(!picker) return;
-  const selectedUids = new Set(_evSelectedPlayers.map(p=>p.uid));
-
-  if(!players.length){
-    picker.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px;">No players found.</div>';
-    return;
-  }
-
-  picker.innerHTML = players.map(p => {
-    const selected = selectedUids.has(p.uid);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
-              cursor:pointer;border-bottom:1px solid var(--border);
-              background:${selected?'rgba(74,222,128,0.06)':'transparent'};"
-              onclick="toggleEventPlayer('${p.uid}','${(p.displayName||p.email).replace(/'/g,"\\'")}','${p.email||''}',${p.nprp||3.5})">
-      <div style="width:18px;height:18px;border-radius:4px;border:1px solid var(--border);
-        background:${selected?'var(--accent)':'transparent'};display:flex;align-items:center;
-        justify-content:center;flex-shrink:0;">
-        ${selected?'<span style="color:#000;font-size:11px;font-weight:700;">✓</span>':''}
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          ${p.displayName||p.email}
-        </div>
-        <div style="font-size:10px;color:var(--muted);">${p.teamName||'No team'} · NPRP ${p.nprp||'—'}</div>
-      </div>
-    </div>`;
-  }).join('');
+function initEventPlayerPicker(){
+  _evPicker = createPlayerPicker({
+    searchId:    'ev-player-search',
+    listId:      'ev-player-picker',
+    selectedId:  'ev-selected-players',
+    countId:     'ev-selected-count',
+    minPlayers:  4,
+    requireEven: true,
+    onSelect: (players) => { _evSelectedPlayers = players; }
+  });
+  return _evPicker.init();
 }
 
 function filterEventPlayerPicker(){
-  const q = document.getElementById('ev-player-search')?.value.toLowerCase()||'';
-  const picker = document.getElementById('ev-player-picker');
-  const all = picker?._allPlayers||[];
-  const filtered = all.filter(p =>
-    (p.displayName||'').toLowerCase().includes(q) ||
-    (p.email||'').toLowerCase().includes(q) ||
-    (p.teamName||'').toLowerCase().includes(q)
-  );
-  renderEventPlayerPicker(filtered);
-}
-
-function toggleEventPlayer(uid, name, email, nprp){
-  const idx = _evSelectedPlayers.findIndex(p=>p.uid===uid);
-  if(idx>=0){
-    _evSelectedPlayers.splice(idx,1);
-  } else {
-    _evSelectedPlayers.push({uid, name, email:email||null, nprp:parseFloat(nprp)||3.5, withdrawn:false});
-  }
-  const picker = document.getElementById('ev-player-picker');
-  if(picker?._allPlayers) renderEventPlayerPicker(picker._allPlayers);
-  renderSelectedEventPlayers();
-}
-
-function renderSelectedEventPlayers(){
-  const el = document.getElementById('ev-selected-players');
-  const count = document.getElementById('ev-selected-count');
-  if(!el) return;
-  if(count) count.textContent = _evSelectedPlayers.length;
-  const isEven = _evSelectedPlayers.length%2===0;
-  const isEnough = _evSelectedPlayers.length>=4;
-  el.innerHTML = _evSelectedPlayers.map(p=>`
-    <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;
-      background:var(--surface-1);border-radius:6px;border:1px solid var(--border);">
-      <span style="font-size:12px;">${p.name}</span>
-      <span style="font-size:10px;color:var(--brand);">NPRP ${p.nprp}</span>
-      <button onclick="removeEventPlayer('${p.uid}')" style="background:none;border:none;
-        color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1;">✕</button>
-    </div>`).join('');
-  if(!isEnough||!isEven){
-    el.innerHTML += `<div style="font-size:10px;color:var(--warn);padding:4px;">
-      ${!isEnough?'Need at least 4 players. ':''}${!isEven&&_evSelectedPlayers.length>=4?'Must be even number.':''}
-    </div>`;
-  }
+  _pickerFilter('ev-player-search');
 }
 
 function removeEventPlayer(uid){
-  _evSelectedPlayers = _evSelectedPlayers.filter(p=>p.uid!==uid);
-  const picker = document.getElementById('ev-player-picker');
-  if(picker?._allPlayers) renderEventPlayerPicker(picker._allPlayers);
-  renderSelectedEventPlayers();
+  _evPicker?.remove(uid);
 }
 
 function addManualEventPlayer(){
@@ -765,9 +680,7 @@ function kingRemovePair(idx){
 
 function openCreateEventModal(){
   _evSelectedPlayers = [];
-  renderSelectedEventPlayers();
   openModal('createEventModal');
-  // Load players after modal opens
   setTimeout(initEventPlayerPicker, 100);
 }
 

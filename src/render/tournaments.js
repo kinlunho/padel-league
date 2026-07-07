@@ -179,6 +179,10 @@ function renderTournamentTab(tab){
 // ── Registration tab ──────────────────────────────────────────────────────────
 
 function renderTournamentRegistration(container, t){
+  // Init picker after DOM renders
+  setTimeout(()=>{
+    if(document.getElementById('treg-player-picker')) initTournamentRegPicker();
+  }, 100);
   const regs = t.registrations||[];
   const confirmed = regs.filter(r=>r.status==='confirmed')
     .sort((a,b)=>(a.seed||999)-(b.seed||999));
@@ -210,18 +214,37 @@ function renderTournamentRegistration(container, t){
         </select>
         <div id="treg-division-status" style="font-size:11px;color:var(--warn);margin-top:4px;min-height:14px;"></div>
       </div>`:''}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-        <div>
-          <label class="form-label" style="font-size:10px;">Player 1 Name</label>
-          <input class="form-input" id="treg-p1name" placeholder="Your name">
-          <input class="form-input" id="treg-p1email" placeholder="Email (optional)" style="margin-top:6px;">
-        </div>
-        <div>
-          <label class="form-label" style="font-size:10px;">Player 2 Name</label>
-          <input class="form-input" id="treg-p2name" placeholder="Partner name">
-          <input class="form-input" id="treg-p2email" placeholder="Email (optional)" style="margin-top:6px;">
-        </div>
+      <input class="form-input" id="treg-player-search"
+        placeholder="Search players by name or email..."
+        oninput="_pickerFilter('treg-player-search')" style="margin-bottom:8px;">
+      <div id="treg-player-picker" style="max-height:160px;overflow-y:auto;
+        border:1px solid var(--border);border-radius:6px;
+        background:var(--surface-1);margin-bottom:8px;"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);
+        text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+        Selected (<span id="treg-count">0</span>)
+        <span style="font-weight:400;"> — select exactly 2 players</span>
       </div>
+      <div id="treg-selected" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;
+        padding:6px;border:1px solid var(--border);border-radius:6px;
+        background:var(--surface-2);margin-bottom:8px;"></div>
+      <details style="margin-bottom:8px;">
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;">
+          + Player not in directory (external)
+        </summary>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Name</div>
+            <input class="form-input" id="treg-manual-name" placeholder="Name" style="width:140px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">NPRP</div>
+            <input class="form-input" id="treg-manual-nprp" type="number"
+              min="1" max="7" step="0.5" placeholder="3.5" style="width:70px;">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addManualTournamentPlayer()">Add</button>
+        </div>
+      </details>
       <button class="btn btn-primary btn-sm" onclick="registerForTournament('${t.id}')">Register</button>
     </div>`:''}
 
@@ -537,12 +560,35 @@ async function submitTournamentScore(){
 
 // ── Admin actions ─────────────────────────────────────────────────────────────
 
+// Tournament registration picker instance
+let _tregPicker = null;
+
+function initTournamentRegPicker(){
+  _tregPicker = createPlayerPicker({
+    searchId:   'treg-player-search',
+    listId:     'treg-player-picker',
+    selectedId: 'treg-selected',
+    countId:    'treg-count',
+    minPlayers: 2,
+    requireEven: false
+  });
+  return _tregPicker.init();
+}
+
+function addManualTournamentPlayer(){
+  const name = document.getElementById('treg-manual-name')?.value.trim();
+  const nprp = parseFloat(document.getElementById('treg-manual-nprp')?.value)||null;
+  if(!name){ showToast('Enter player name',true); return; }
+  const uid = `ext_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  _tregPicker?.toggle(uid, name, null, nprp);
+  document.getElementById('treg-manual-name').value='';
+  document.getElementById('treg-manual-nprp').value='';
+}
+
 async function registerForTournament(tid){
-  const p1name  = document.getElementById('treg-p1name')?.value.trim();
-  const p1email = document.getElementById('treg-p1email')?.value.trim()||null;
-  const p2name  = document.getElementById('treg-p2name')?.value.trim();
-  const p2email = document.getElementById('treg-p2email')?.value.trim()||null;
-  if(!p1name||!p2name){ showToast('Enter both player names',true); return; }
+  const selected = _tregPicker?.getSelected()||[];
+  if(selected.length !== 2){ showToast('Select exactly 2 players for your pair',true); return; }
+  const [p1, p2] = selected;
 
   const t = S.tournaments[tid];
   const regs = t.registrations||[];
@@ -551,17 +597,15 @@ async function registerForTournament(tid){
   const divRegs = divisionId ? regs.filter(r=>r.divisionId===divisionId&&r.status==='confirmed') : regs.filter(r=>r.status==='confirmed');
   const drawSize = division?.drawSize||t.drawSize||16;
   const isFull = divRegs.length >= drawSize;
-  const pairId = generatePairId(p1name, p2name, t.date);
+  const pairId = generatePairId(p1.name, p2.name, t.date);
 
   const newReg = {
     pairId, registeredAt: new Date().toISOString(),
     status: isFull ? 'waitlist' : 'confirmed',
     divisionId: divisionId||null,
     seed: null,
-    player1:{name:p1name, email:p1email,
-      uid: p1email ? (Object.values(S.players||{}).find(p=>p.email===p1email)?.uid||null) : null},
-    player2:{name:p2name, email:p2email,
-      uid: p2email ? (Object.values(S.players||{}).find(p=>p.email===p2email)?.uid||null) : null}
+    player1:{name:p1.name, email:p1.email||null, uid:p1.uid||null, nprp:p1.nprp||null},
+    player2:{name:p2.name, email:p2.email||null, uid:p2.uid||null, nprp:p2.nprp||null}
   };
 
   await TournamentsDB.update(tid, {
