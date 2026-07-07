@@ -389,6 +389,10 @@ if (!IS_LOCAL_DEV){
       showApp();
       setNavUser(firebaseUser);
       // EventsDB is not part of app-ready gate — subscribe separately after boot
+      TournamentsDB.subscribe(() => {
+        const active = document.querySelector('.page.active')?.id.replace('page-','');
+        if(active === 'tournaments') renderTournamentsPage();
+      });
       EventsDB.subscribe(() => {
         const active = document.querySelector('.page.active')?.id.replace('page-','');
         if(active === 'events') renderEventsPage();

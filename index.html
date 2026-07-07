@@ -74,6 +74,7 @@
     <button class="nav-tab active" onclick="showPage('home',this);closeMobileNav()">Home</button>
     <button class="nav-tab" onclick="showPage('league',this);closeMobileNav()">League</button>
     <button class="nav-tab" onclick="showPage('events',this);closeMobileNav()">Events</button>
+    <button class="nav-tab" onclick="showPage('tournaments',this);closeMobileNav()">Tournament</button>
     <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
     <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
     <button class="nav-tab" id="nav-profile-tab" onclick="showPage('profile',this);closeMobileNav()" style="display:none;">Profile</button>
@@ -216,6 +217,12 @@
 <div class="page" id="page-events">
   <div class="section-title">Events</div>
   <div id="events-content"></div>
+</div>
+
+<!-- ══ TOURNAMENTS ══ -->
+<div class="page" id="page-tournaments">
+  <div class="section-title">Tournament</div>
+  <div id="tournaments-content"></div>
 </div>
 
 <!-- ══ TEAMS ══ -->
@@ -577,6 +584,75 @@
   </div>
 </div>
 
+<!-- Create Tournament Modal -->
+<div class="modal-overlay" id="createTournamentModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">Create Tournament</div>
+    <div class="form-group">
+      <label class="form-label">Tournament Name</label>
+      <input class="form-input" id="tn-name" placeholder="e.g. GO Park Open 2026">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input class="form-input" id="tn-date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date</label>
+        <input class="form-input" id="tn-enddate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Venue</label>
+        <input class="form-input" id="tn-venue" placeholder="GO Park Sports">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Draw Size</label>
+        <select class="form-select" id="tn-draw">
+          <option value="8">8 teams</option>
+          <option value="16" selected>16 teams</option>
+          <option value="24">24 teams</option>
+          <option value="32">32 teams</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Group Stage Format</label>
+        <select class="form-select" id="tn-sets">
+          <option value="1">1 set + super tiebreak</option>
+          <option value="2" selected>2 sets + super tiebreak</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('createTournamentModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTournament()">Create Tournament</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tournament Score Modal -->
+<div class="modal-overlay" id="tournamentScoreModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">Enter Score</div>
+    <div id="tournament-score-modal-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tournamentScoreModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTournamentScore()">Confirm Score</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tournament Seeding Modal -->
+<div class="modal-overlay" id="tournamentSeedingModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">🌱 Seed Teams</div>
+    <div id="tournament-seeding-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tournamentSeedingModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSeeding(S_tournament?.id)">Confirm Seeding & Generate Groups</button>
+    </div>
+  </div>
+</div>
+
 <!-- Register -->
 <div class="modal-overlay" id="registerModal">
   <div class="modal">
@@ -890,6 +966,8 @@
 -->
 <script src="src/state.js"></script>
 <script src="src/scoring.js"></script>
+  <script src="src/data/tournaments.js"></script>
+  <script src="src/render/tournaments.js"></script>
   <script src="src/oplr.js"></script>
   <script src="src/mexicano.js"></script>
   <script src="src/data/events.js"></script>
