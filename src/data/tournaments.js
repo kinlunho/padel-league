@@ -9,11 +9,12 @@ const TournamentsDB = {
     const id = `tournament_${Date.now()}`;
     await db.collection('tournaments').doc(id).set({
       id, ...data,
-      status: 'registration',  // registration | seeding | groups | knockout | complete
+      status: 'registration',
       currentPhase: 'groups',
-      registrations: [],        // [{pairId, player1, player2, registeredAt, status, seed}]
-      groups: [],               // [{groupId, name:'A'|'B'..., pairIds:[]}]
-      standings: {},            // {pairId: {played,won,lost,setsWon,setsLost,gamesWon,gamesLost,points}}
+      divisions: data.divisions||[],  // [{divisionId, name, drawSize}]
+      registrations: [],   // [{pairId, player1, player2, divisionId, registeredAt, status:'confirmed'|'waitlist', seed}]
+      groups: [],          // [{groupId, divisionId, name, pairIds:[]}]
+      standings: {},       // {pairId: {...}}
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -185,4 +186,13 @@ function calcTournamentGroupStandings(tournament, groupId, matches){
 function generatePairId(p1name, p2name, date){
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,8);
   return `${slug(p1name)}_${slug(p2name)}_${(date||'').replace(/-/g,'').slice(0,8)}`;
+}
+
+// ── KO format per round ──────────────────────────────────────────────────────
+// If group format = 1 set: R16/QF use 1 set, SF+Final use 2 sets
+// If group format = 2 sets: all KO rounds use 2 sets
+function koFormatForRound(tournament, round){
+  const groupSets = tournament.format?.sets || 2;
+  if(groupSets === 2) return {sets:2};
+  return round <= 2 ? {sets:2} : {sets:1};
 }

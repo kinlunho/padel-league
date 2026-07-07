@@ -622,6 +622,24 @@
         </select>
       </div>
     </div>
+    <!-- Division management -->
+    <div style="margin-top:4px;">
+      <label class="form-label">Divisions <span style="font-weight:400;color:var(--muted);">(optional — leave empty for single draw)</span></label>
+      <div id="tn-divisions-list" style="margin-bottom:8px;min-height:24px;">
+        <div style="color:var(--muted);font-size:11px;font-style:italic;">No divisions added — tournament will use single draw</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div style="flex:1;">
+          <input class="form-input" id="tn-div-name" placeholder="e.g. Men's A, Women's B, Mixed"
+            style="font-size:12px;">
+        </div>
+        <div style="width:80px;">
+          <input class="form-input" id="tn-div-size" type="number" value="16" min="4" max="64"
+            placeholder="Draw" style="font-size:12px;">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="addTournamentDivision()">+ Add</button>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('createTournamentModal')">Cancel</button>
       <button class="btn btn-primary" onclick="createTournament()">Create Tournament</button>
