@@ -11,7 +11,209 @@ function renderEventsPage(){
   if(S_eventDetail){
     renderEventDetail(container);
   } else {
-    renderEventsList(container);
+    renderEventsPublicView(container);
+  }
+}
+
+function renderEventsPublicView(container){
+  const all = Object.values(S.events||{})
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const active    = all.filter(e=>e.status==='active'||e.status==='open');
+  const completed = all.filter(e=>e.status==='complete');
+
+  // Show active event front and center, or most recent completed
+  const featured = active[0] || completed[0];
+
+  const formatIcon  = {mexicano:'🔄',americano:'🤝',king:'👑'};
+  const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
+
+  if(!featured){
+    container.innerHTML=`<div style="text-align:center;padding:40px 0;">
+      <div style="font-size:32px;margin-bottom:12px;">🎾</div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:6px;">No events yet</div>
+      <div style="color:var(--muted);font-size:13px;">Events will appear here when scheduled.</div>
+    </div>`;
+    return;
+  }
+
+  // Sub-tabs for the featured event
+  const subTabs = [
+    {id:'standings',label:'🏆 Standings'},
+    {id:'courts',label:'🎾 On Court'},
+    {id:'results',label:'📋 Results'},
+  ];
+
+  const activeSubTab = S._eventSubTab||'standings';
+
+  container.innerHTML=`
+    <!-- Featured event header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;
+      flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:20px;font-weight:700;">${featured.name}</div>
+        <div style="font-size:12px;color:var(--muted);">
+          ${formatIcon[featured.type]||'🎾'} ${formatLabel[featured.type]||featured.type}
+          · ${featured.date||'TBC'}
+          · ${(featured.players||[]).length} players
+          · Round ${featured.currentRound||0}${featured.totalRounds?'/'+featured.totalRounds:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        ${featured.status==='active'?`<button class="btn btn-ghost btn-sm"
+          onclick="openLeaderboard('${featured.id}')">📺 Full-screen</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="openEventDetail('${featured.id}')">
+          ${isAdminUser()?'Manage →':'Details →'}</button>
+      </div>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div class="group-tabs" style="margin-bottom:16px;" id="event-public-tabs">
+      ${subTabs.map(t=>`<button class="group-tab ${activeSubTab===t.id?'active':''}"
+        onclick="setEventPublicTab('${featured.id}','${t.id}',this)">${t.label}</button>`).join('')}
+    </div>
+
+    <!-- Tab content -->
+    <div id="event-public-content"></div>
+
+    <!-- Past events -->
+    ${completed.length>1?`
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:10px;">Past Events</div>
+      ${completed.filter(e=>e.id!==featured.id).map(e=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;
+          border-bottom:1px solid var(--border);cursor:pointer;"
+          onclick="openEventDetail('${e.id}')">
+          <div style="font-size:16px;">${formatIcon[e.type]||'🎾'}</div>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;">${e.name}</div>
+            <div style="font-size:10px;color:var(--muted);">${e.date||'—'} · ${formatLabel[e.type]||e.type}</div>
+          </div>
+          <span style="font-size:10px;color:var(--muted);">View →</span>
+        </div>`).join('')}
+    </div>`:''}`;
+
+  // Render the active sub-tab
+  renderEventPublicTab(featured, activeSubTab);
+}
+
+function setEventPublicTab(eventId, tab, el){
+  S._eventSubTab = tab;
+  document.querySelectorAll('#event-public-tabs .group-tab').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const e = S.events[eventId];
+  if(e) renderEventPublicTab(e, tab);
+}
+
+async function renderEventPublicTab(e, tab){
+  const container = document.getElementById('event-public-content');
+  if(!container) return;
+
+  if(tab==='standings'){
+    const standings = e.standings
+      ? Object.values(e.standings).filter(s=>!s.withdrawn)
+          .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
+      : [];
+    const medals = ['🥇','🥈','🥉'];
+    container.innerHTML = !standings.length
+      ? '<div style="color:var(--muted);font-size:12px;font-style:italic;">No results yet — event in progress.</div>'
+      : `<div class="card" style="padding:0;overflow:hidden;">
+          <table style="width:100%;">
+            <thead><tr style="font-size:10px;color:var(--muted);">
+              <th style="padding:8px 12px;text-align:left;">#</th>
+              <th style="padding:8px 12px;text-align:left;">Player</th>
+              <th style="padding:8px 12px;text-align:center;">Pts</th>
+              <th style="padding:8px 12px;text-align:center;">GW</th>
+              <th style="padding:8px 12px;text-align:center;">GL</th>
+            </tr></thead>
+            <tbody>
+              ${standings.map((s,i)=>`
+                <tr style="border-top:1px solid var(--border);${i<3?'background:rgba(74,222,128,0.03)':''}">
+                  <td style="padding:8px 12px;font-family:'Space Mono',monospace;font-weight:700;
+                    color:${i===0?'var(--gold)':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)'};">
+                    ${medals[i]||i+1}</td>
+                  <td style="padding:8px 12px;font-weight:600;">${s.name}</td>
+                  <td style="padding:8px 12px;text-align:center;font-family:'Space Mono',monospace;
+                    font-weight:700;color:var(--brand);">${s.points}</td>
+                  <td style="padding:8px 12px;text-align:center;color:var(--accent);">${s.gamesWon}</td>
+                  <td style="padding:8px 12px;text-align:center;color:var(--red);">${s.gamesLost}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+  } else if(tab==='courts'){
+    // Load rounds if needed
+    if(!S_eventRounds.length && e.type!=='king'){
+      S_eventRounds = await EventsDB.getRounds(e.id);
+    }
+    const isKing = e.type==='king';
+    if(isKing){
+      const courts = (e.courts||[]).sort((a,b)=>a.level-b.level);
+      container.innerHTML = courts.map(c=>`
+        <div class="card" style="border-left:3px solid ${c.courtType==='king'?'var(--gold)':'var(--brand)'};">
+          <div style="font-size:10px;font-weight:700;color:${c.courtType==='king'?'var(--gold)':'var(--brand)'};margin-bottom:8px;">
+            ${c.courtType==='king'?'👑 KING COURT':`⚔ CHALLENGER ${c.level}`}
+            <span style="color:${c.status==='playing'?'var(--accent)':'var(--muted)'};">
+              · ${c.status==='playing'?'LIVE':'WAITING'}
+            </span>
+          </div>
+          ${c.status==='playing'
+            ?`<div style="font-weight:600;">${c.currentPairA?.name||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);margin:3px 0;">vs</div>
+              <div style="font-weight:600;">${c.currentPairB?.name||'—'}</div>`
+            :c.pendingChallenger
+              ?`<div style="color:var(--gold);font-size:13px;">⏳ ${c.pendingChallenger.name} — challenger ready</div>`
+              :'<div style="color:var(--muted);font-size:12px;font-style:italic;">Waiting for next pair...</div>'}
+        </div>`).join('');
+    } else {
+      const currentRound = S_eventRounds.find(r=>r.roundNumber===e.currentRound);
+      if(!currentRound){container.innerHTML='<div style="color:var(--muted);font-size:12px;">No active round.</div>';return;}
+      const active = (currentRound.matches||[]).filter(m=>!m.isBye);
+      const bye    = (currentRound.matches||[]).filter(m=>m.isBye);
+      container.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Round ${e.currentRound}</div>`
+        + active.map(m=>`
+          <div class="card" style="margin-bottom:10px;">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Court ${m.court||'?'}</div>
+            <div style="font-weight:600;">${m.teamANames}</div>
+            <div style="font-size:11px;color:var(--muted);margin:3px 0;">vs</div>
+            <div style="font-weight:600;">${m.teamBNames}</div>
+            ${m.status==='confirmed'?`<div style="font-family:'Space Mono',monospace;font-weight:700;color:var(--accent);margin-top:6px;">${m.scoreA}–${m.scoreB}</div>`:''}
+          </div>`).join('')
+        + bye.map(m=>`<div style="padding:8px;border:1px dashed var(--border);border-radius:6px;margin-bottom:8px;">
+            <span style="color:var(--muted);font-size:12px;">⏸ ${m.byeNames||''} — sitting out</span>
+          </div>`).join('');
+    }
+
+  } else if(tab==='results'){
+    if(!S_eventRounds.length && e.type!=='king') S_eventRounds = await EventsDB.getRounds(e.id);
+    const isKing = e.type==='king';
+    if(isKing){
+      const games=[...(e.games||[])].reverse();
+      container.innerHTML=!games.length?'<div style="color:var(--muted);font-size:12px;">No games yet.</div>'
+        :games.map(g=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:12px;">${g.courtType==='king'?'👑':'⚔'}</span>
+          <span style="flex:1;font-size:12px;color:${g.winner==='A'?'var(--text-primary)':'var(--muted)'};">${g.teamA}</span>
+          <span style="font-family:'Space Mono',monospace;font-weight:700;color:var(--gold);">${g.scoreA}–${g.scoreB}</span>
+          <span style="flex:1;text-align:right;font-size:12px;color:${g.winner==='B'?'var(--text-primary)':'var(--muted)'};">${g.teamB}</span>
+        </div>`).join('');
+    } else {
+      const rounds=(S_eventRounds||[]).filter(r=>(r.matches||[]).some(m=>!m.isBye&&m.status==='confirmed'))
+        .sort((a,b)=>a.roundNumber-b.roundNumber);
+      container.innerHTML=!rounds.length?'<div style="color:var(--muted);font-size:12px;">No completed matches yet.</div>'
+        :rounds.map(r=>{
+          const matches=(r.matches||[]).filter(m=>!m.isBye&&m.status==='confirmed');
+          return `<div style="margin-bottom:16px;">
+            <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;
+              margin-bottom:8px;">Round ${r.roundNumber}</div>
+            ${matches.map(m=>{const aWon=m.scoreA>m.scoreB;
+              return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span style="flex:1;font-size:12px;color:${aWon?'var(--text-primary)':'var(--muted)'};">${m.teamANames}</span>
+                <span style="font-family:'Space Mono',monospace;font-weight:700;color:var(--gold);">${m.scoreA}–${m.scoreB}</span>
+                <span style="flex:1;text-align:right;font-size:12px;color:${!aWon?'var(--text-primary)':'var(--muted)'};">${m.teamBNames}</span>
+              </div>`;}).join('')}
+          </div>`;}).join('');
+    }
   }
 }
 
@@ -30,9 +232,7 @@ function renderEventsList(container){
   const events = Object.values(S.events||{})
     .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
-  const createBtn = isAdminUser()
-    ? `<button class="btn btn-primary btn-sm" onclick="openCreateEventModal()">+ Create Event</button>`
-    : '';
+  const createBtn = ''; // Create moved to Admin → Event Management
 
   if(!events.length){
     container.innerHTML=`

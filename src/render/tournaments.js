@@ -26,22 +26,27 @@ function renderTournamentList(container){
     groups:'🎾 Group Stage', knockout:'⚔ Knockout', complete:'✓ Complete'
   };
 
-  const createBtn = isAdminUser()
-    ? `<button class="btn btn-primary btn-sm" onclick="openCreateTournamentModal()">+ Create Tournament</button>`
-    : '';
+  const createBtn = ''; // Create moved to Admin → Tournament Management
 
   if(!all.length){
     container.innerHTML=`<div style="text-align:center;padding:40px 0;">
       <div style="font-size:32px;margin-bottom:12px;">🏆</div>
       <div style="font-weight:600;font-size:14px;margin-bottom:6px;">No tournaments yet</div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:16px;">
-        ${isAdminUser()?'Create the first tournament below.':'Tournaments will appear here when scheduled.'}
-      </div>${createBtn}</div>`;
+      <div style="color:var(--muted);font-size:13px;">Tournaments will appear here when scheduled.</div>
+    </div>`;
     return;
   }
 
   const active    = all.filter(t=>t.status!=='complete');
   const completed = all.filter(t=>t.status==='complete');
+
+  // Featured = active tournament or most recent completed
+  const featured = active[0] || completed[0];
+  if(featured){
+    // Show featured with sub-tabs + past archive
+    renderTournamentPublicView(container, featured, all);
+    return;
+  }
 
   const renderCard = t => {
     const regs = t.registrations||[];
@@ -93,6 +98,161 @@ function renderTournamentList(container){
 }
 
 // ── Detail ────────────────────────────────────────────────────────────────────
+
+function renderTournamentPublicView(container, featured, all){
+  const t = featured;
+  const completed = all.filter(x=>x.status==='complete');
+  const statusColor = {registration:'var(--accent)',seeding:'var(--gold)',
+    groups:'var(--brand)',knockout:'var(--warn)',complete:'var(--muted)'};
+  const statusLabel = {registration:'Registration Open',seeding:'Seeding',
+    groups:'Group Stage',knockout:'Knockout',complete:'Complete'};
+  const setsLabel = t.format?.sets===1?'1 set + super TB':'2 sets + super TB';
+  const activeSubTab = S._tournamentSubTab||'standings';
+
+  container.innerHTML=`
+    <!-- Featured tournament header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;
+      flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:20px;font-weight:700;">${t.name}</div>
+        <div style="font-size:12px;color:var(--muted);">
+          📅 ${t.date||'TBC'}${t.endDate&&t.endDate!==t.date?` – ${t.endDate}`:''}
+          ${t.venue?` · 📍 ${t.venue}`:''}
+          · ${setsLabel}
+        </div>
+        <div style="margin-top:4px;">
+          <span style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:600;
+            background:${statusColor[t.status]}22;color:${statusColor[t.status]};">
+            ${statusLabel[t.status]||t.status}
+          </span>
+          ${(t.divisions||[]).map(d=>`<span style="font-size:10px;color:var(--muted);margin-left:8px;">${d.name}</span>`).join('')}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openTournamentDetail('${t.id}')">
+        ${isAdminUser()?'Manage →':'Details →'}</button>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div class="group-tabs" style="margin-bottom:16px;" id="tournament-public-tabs">
+      <button class="group-tab ${activeSubTab==='standings'?'active':''}"
+        onclick="setTournamentPublicTab('${t.id}','standings',this)">🏆 Standings</button>
+      <button class="group-tab ${activeSubTab==='matches'?'active':''}"
+        onclick="setTournamentPublicTab('${t.id}','matches',this)">🎾 Matches</button>
+      <button class="group-tab ${activeSubTab==='results'?'active':''}"
+        onclick="setTournamentPublicTab('${t.id}','results',this)">📋 Results</button>
+    </div>
+    <div id="tournament-public-content"></div>
+
+    <!-- Past tournaments -->
+    ${completed.length>1?`
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:10px;">Past Tournaments</div>
+      ${completed.filter(x=>x.id!==t.id).map(x=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;
+          border-bottom:1px solid var(--border);cursor:pointer;"
+          onclick="openTournamentDetail('${x.id}')">
+          <div style="font-size:16px;">🏆</div>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;">${x.name}</div>
+            <div style="font-size:10px;color:var(--muted);">${x.date||'—'}${x.venue?` · ${x.venue}`:''}</div>
+          </div>
+          <span style="font-size:10px;color:var(--muted);">View →</span>
+        </div>`).join('')}
+    </div>`:''}`;
+
+  renderTournamentPublicTab(t, activeSubTab);
+}
+
+async function setTournamentPublicTab(tid, tab, el){
+  S._tournamentSubTab = tab;
+  document.querySelectorAll('#tournament-public-tabs .group-tab').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const t = S.tournaments[tid];
+  if(t){
+    S_tournamentMatches = await TournamentsDB.getMatches(tid);
+    renderTournamentPublicTab(t, tab);
+  }
+}
+
+async function renderTournamentPublicTab(t, tab){
+  const container = document.getElementById('tournament-public-content');
+  if(!container) return;
+
+  if(!S_tournamentMatches.length) S_tournamentMatches = await TournamentsDB.getMatches(t.id);
+
+  if(tab==='standings'){
+    const groups = t.groups||[];
+    if(!groups.length){
+      container.innerHTML = t.status==='registration'||t.status==='seeding'
+        ?`<div style="color:var(--muted);font-size:12px;">
+            Registration open · ${(t.registrations||[]).filter(r=>r.status==='confirmed').length}/${t.drawSize||16} teams registered
+          </div>`
+        :'<div style="color:var(--muted);font-size:12px;">Groups not yet generated.</div>';
+      return;
+    }
+    container.innerHTML = groups.map(group=>{
+      const standings = calcTournamentGroupStandings(t, group.groupId, S_tournamentMatches);
+      const divName = (t.divisions||[]).find(d=>d.divisionId===group.divisionId)?.name||'';
+      return `<div style="margin-bottom:16px;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          ${divName?divName+' · ':''}Group ${group.name}
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table style="width:100%;">
+            <thead><tr style="font-size:10px;color:var(--muted);">
+              <th style="padding:6px 12px;text-align:left;">#</th>
+              <th style="padding:6px 12px;text-align:left;">Pair</th>
+              <th style="padding:6px 8px;text-align:center;">Pts</th>
+              <th style="padding:6px 8px;text-align:center;">W</th>
+              <th style="padding:6px 8px;text-align:center;">L</th>
+            </tr></thead>
+            <tbody>
+              ${standings.map((s,i)=>`
+                <tr style="border-top:1px solid var(--border);${i<(t.advancePerGroup||2)?'background:rgba(74,222,128,0.03)':''}">
+                  <td style="padding:8px 12px;color:${i<(t.advancePerGroup||2)?'var(--accent)':'var(--muted)'};font-size:12px;">
+                    ${i<(t.advancePerGroup||2)?'↑':i+1}</td>
+                  <td style="padding:8px 12px;font-weight:600;font-size:12px;">${s.name}</td>
+                  <td style="padding:8px;text-align:center;font-weight:700;color:var(--brand);">${s.points}</td>
+                  <td style="padding:8px;text-align:center;color:var(--accent);">${s.won}</td>
+                  <td style="padding:8px;text-align:center;color:var(--red);">${s.lost}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    }).join('');
+
+  } else if(tab==='matches'){
+    const pending = S_tournamentMatches.filter(m=>m.status==='pending'&&m.pairA&&m.pairB);
+    container.innerHTML = !pending.length
+      ?'<div style="color:var(--muted);font-size:12px;">No matches in progress.</div>'
+      :pending.map(m=>`
+        <div class="card" style="margin-bottom:10px;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">
+            ${m.phase==='ko'?'⚔ Knockout':'🎾 Group '+m.groupId?.split('_').pop()?.toUpperCase()}
+            ${m.court?` · Court ${m.court}`:''}
+          </div>
+          <div style="font-weight:600;">${m.pairA?.name||'TBD'}</div>
+          <div style="font-size:11px;color:var(--muted);margin:3px 0;">vs</div>
+          <div style="font-weight:600;">${m.pairB?.name||'TBD'}</div>
+        </div>`).join('');
+
+  } else if(tab==='results'){
+    const done = [...S_tournamentMatches.filter(m=>m.status==='confirmed')].reverse();
+    container.innerHTML = !done.length
+      ?'<div style="color:var(--muted);font-size:12px;">No completed matches yet.</div>'
+      :done.map(m=>{
+        const score=(m.score?.sets||[]).map(s=>`${s.a}-${s.b}`).join(' ');
+        const st=m.score?.superTb?` [${m.score.superTb.a}-${m.score.superTb.b}]`:'';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:10px;color:var(--muted);width:24px;">${m.phase==='ko'?'KO':'G'}</span>
+          <span style="flex:1;font-size:12px;color:${m.winner==='A'?'var(--text-primary)':'var(--muted)'};">${m.pairA?.name||'—'}</span>
+          <span style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--gold);">${score}${st}</span>
+          <span style="flex:1;text-align:right;font-size:12px;color:${m.winner==='B'?'var(--text-primary)':'var(--muted)'};">${m.pairB?.name||'—'}</span>
+        </div>`;}).join('');
+  }
+}
 
 async function openTournamentDetail(tid){
   S_tournament = S.tournaments[tid];

@@ -26,6 +26,8 @@ function renderAdminPage(){
         ['teams',   `Team Management${teamBadge}`],
         ['users',   'User Management'],
         ['league',  'League Setup'],
+        ['events',  'Event Management'],
+        ['tournaments','Tournament Management'],
       ].map(([id,label])=>`
         <button onclick="switchAdminTab('${id}')" id="atab-${id}"
           style="padding:8px 16px;border:none;border-bottom:2px solid ${_adminTab===id?'var(--brand)':'transparent'};
@@ -72,6 +74,16 @@ function renderAdminTabContent(){
       <div id="admin-season"></div>`;
     renderAdminSeason();
     renderDivisionRows();
+  } else if(_adminTab === 'events'){
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Event Management</div>
+      <div id="admin-events-content"></div>`;
+    renderAdminEvents();
+  } else if(_adminTab === 'tournaments'){
+    el.innerHTML = `
+      <div style="font-weight:700;font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Tournament Management</div>
+      <div id="admin-tournaments-content"></div>`;
+    renderAdminTournaments();
   }
 }
 
@@ -776,4 +788,128 @@ async function generateAllFixtures(){
   }
   showToast(total>0?`Fixtures generated for ${total} division${total!==1?'s':''}`:'All divisions already have fixtures');
   renderAdminPage(); // re-render current tab rather than assuming a specific element exists
+}
+
+
+// ── Admin Event Management ────────────────────────────────────────────────────
+
+function renderAdminEvents(){
+  const el = document.getElementById('admin-events-content');
+  if(!el) return;
+
+  const all = Object.values(S.events||{})
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const active    = all.filter(e=>e.status!=='complete');
+  const completed = all.filter(e=>e.status==='complete');
+
+  const formatIcon  = {mexicano:'🔄',americano:'🤝',king:'👑'};
+  const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
+  const statusColor = {open:'var(--accent)',active:'var(--gold)',complete:'var(--muted)'};
+
+  const renderEventRow = e => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;">${formatIcon[e.type]||'🎾'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${e.name}</div>
+        <div style="font-size:11px;color:var(--muted);">
+          ${formatLabel[e.type]||e.type} · ${e.date||'TBC'} ·
+          ${(e.players||[]).length} players · ${e.courts||1} court${e.courts!==1?'s':''}
+        </div>
+      </div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;
+        background:${statusColor[e.status]}22;color:${statusColor[e.status]};">
+        ${e.status==='complete'?'✓ DONE':e.status.toUpperCase()}
+      </span>
+      <button class="btn btn-ghost btn-sm" onclick="adminViewEvent('${e.id}')">Manage →</button>
+    </div>`;
+
+  el.innerHTML = `
+    <button class="btn btn-primary btn-sm" style="margin-bottom:16px;"
+      onclick="openCreateEventModal()">+ Create Event</button>
+
+    ${active.length?`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:8px;">Active (${active.length})</div>
+      ${active.map(renderEventRow).join('')}
+    `:'<div style="color:var(--muted);font-size:12px;margin-bottom:16px;font-style:italic;">No active events.</div>'}
+
+    ${completed.length?`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin:16px 0 8px;padding-top:16px;border-top:1px solid var(--border);">
+        Archive (${completed.length})
+      </div>
+      ${completed.map(renderEventRow).join('')}
+    `:''}`;
+}
+
+function adminViewEvent(eventId){
+  // Switch to Events page and open detail
+  showPage('events', document.querySelector('.nav-tab:nth-child(3)'));
+  setTimeout(()=>openEventDetail(eventId), 200);
+}
+
+// ── Admin Tournament Management ───────────────────────────────────────────────
+
+function renderAdminTournaments(){
+  const el = document.getElementById('admin-tournaments-content');
+  if(!el) return;
+
+  const all = Object.values(S.tournaments||{})
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const active    = all.filter(t=>t.status!=='complete');
+  const completed = all.filter(t=>t.status==='complete');
+
+  const statusColor = {
+    registration:'var(--accent)',seeding:'var(--gold)',
+    groups:'var(--brand)',knockout:'var(--warn)',complete:'var(--muted)'
+  };
+  const statusLabel = {
+    registration:'Registration',seeding:'Seeding',
+    groups:'Group Stage',knockout:'Knockout',complete:'Done'
+  };
+
+  const renderTRow = t => {
+    const confirmed = (t.registrations||[]).filter(r=>r.status==='confirmed');
+    const waitlist  = (t.registrations||[]).filter(r=>r.status==='waitlist');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;">🏆</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${t.name}</div>
+        <div style="font-size:11px;color:var(--muted);">
+          ${t.date||'TBC'}${t.endDate&&t.endDate!==t.date?` – ${t.endDate}`:''}
+          ${t.venue?` · ${t.venue}`:''}
+          · ${confirmed.length}/${t.drawSize||16} teams
+          ${waitlist.length?`· ${waitlist.length} waitlisted`:''}
+        </div>
+      </div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;
+        background:${statusColor[t.status]}22;color:${statusColor[t.status]};">
+        ${statusLabel[t.status]||t.status}
+      </span>
+      <button class="btn btn-ghost btn-sm" onclick="adminViewTournament('${t.id}')">Manage →</button>
+    </div>`;
+  };
+
+  el.innerHTML = `
+    <button class="btn btn-primary btn-sm" style="margin-bottom:16px;"
+      onclick="openCreateTournamentModal()">+ Create Tournament</button>
+
+    ${active.length?`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:8px;">Active (${active.length})</div>
+      ${active.map(renderTRow).join('')}
+    `:'<div style="color:var(--muted);font-size:12px;margin-bottom:16px;font-style:italic;">No active tournaments.</div>'}
+
+    ${completed.length?`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin:16px 0 8px;padding-top:16px;border-top:1px solid var(--border);">
+        Archive (${completed.length})
+      </div>
+      ${completed.map(renderTRow).join('')}
+    `:''}`;
+}
+
+function adminViewTournament(tid){
+  showPage('tournaments', document.querySelector('.nav-tab'));
+  setTimeout(()=>openTournamentDetail(tid), 200);
 }
