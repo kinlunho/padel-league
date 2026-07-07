@@ -73,9 +73,8 @@
   <div class="nav-tabs" id="nav-tabs">
     <button class="nav-tab active" onclick="showPage('home',this);closeMobileNav()">Home</button>
     <button class="nav-tab" onclick="showPage('league',this);closeMobileNav()">League</button>
-    <button class="nav-tab" onclick="showPage('knockout',this);closeMobileNav()">Knockout</button>
-    <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
     <button class="nav-tab" onclick="showPage('events',this);closeMobileNav()">Events</button>
+    <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
     <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
     <button class="nav-tab" id="nav-profile-tab" onclick="showPage('profile',this);closeMobileNav()" style="display:none;">Profile</button>
     <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this);closeMobileNav()" style="display:none;">⚙ Admin</button>
@@ -135,6 +134,7 @@
     <button class="group-tab league-tab" onclick="setLeagueTab('matches',this)">Matches</button>
     <button class="group-tab league-tab" onclick="setLeagueTab('schedule',this)">Schedule</button>
     <button class="group-tab league-tab" onclick="setLeagueTab('submit',this)">Submit Score</button>
+    <button class="group-tab league-tab" onclick="setLeagueTab('knockout',this)">Knockout</button>
   </div>
 
   <!-- Standings sub-page -->
@@ -169,6 +169,36 @@
   <div class="league-sub" id="league-sub-submit" style="margin-top:16px;display:none;">
     <div id="submit-container"></div>
   </div>
+
+  <!-- Knockout sub-page -->
+  <div class="league-sub" id="league-sub-knockout" style="margin-top:16px;display:none;">
+  <div class="section-title">Knockout Stage</div>
+
+  <!-- Admin generate bar -->
+  <div id="ko-admin-bar" style="display:none;margin-bottom:14px;">
+    <div class="card" style="background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-weight:600;font-size:13px;color:var(--gold);">⚡ Admin — Knockout Day</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Generate fixtures after group stage ends. Court count is entered at generation time.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="generateKnockoutFixtures()">Generate KO Fixtures</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub tabs -->
+  <div class="group-tabs" style="margin-bottom:0;" id="ko-sub-tabs">
+    <button class="group-tab active ko-tab" onclick="setKOTab('standings',this)">Brackets</button>
+    <button class="group-tab ko-tab" onclick="setKOTab('schedule',this)">Court Schedule</button>
+  </div>
+
+  <div style="margin-top:16px;">
+    <div class="alert alert-blue" style="margin-bottom:18px;" id="knockout-status">Group stage in progress — knockout brackets will appear once matches are confirmed.</div>
+    <div id="knockout-container"></div>
+  </div>
+</div>
+  </div>
 </div>
 
 <!-- ══ PROFILE ══ -->
@@ -196,34 +226,6 @@
 </div>
 
 <!-- ══ KNOCKOUT ══ -->
-<div class="page" id="page-knockout">
-  <div class="section-title">Knockout Stage</div>
-
-  <!-- Admin generate bar -->
-  <div id="ko-admin-bar" style="display:none;margin-bottom:14px;">
-    <div class="card" style="background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);padding:12px 16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-weight:600;font-size:13px;color:var(--gold);">⚡ Admin — Knockout Day</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Generate fixtures after group stage ends. Court count is entered at generation time.</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="generateKnockoutFixtures()">Generate KO Fixtures</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Sub tabs -->
-  <div class="group-tabs" style="margin-bottom:0;" id="ko-sub-tabs">
-    <button class="group-tab active ko-tab" onclick="setKOTab('standings',this)">Brackets</button>
-    <button class="group-tab ko-tab" onclick="setKOTab('schedule',this)">Court Schedule</button>
-  </div>
-
-  <div style="margin-top:16px;">
-    <div class="alert alert-blue" style="margin-bottom:18px;" id="knockout-status">Group stage in progress — knockout brackets will appear once matches are confirmed.</div>
-    <div id="knockout-container"></div>
-  </div>
-</div>
-
 <!-- ══ ADMIN ══ -->
 <div class="page" id="page-admin">
   <div class="section-title">⚙ Admin Dashboard

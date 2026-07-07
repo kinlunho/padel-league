@@ -47,7 +47,7 @@ function renderPage(name){
   if(name==='home')     renderHome();
   else if(name==='league')   renderLeaguePage();
   else if(name==='teams')    renderTeamsPage();
-  else if(name==='knockout') renderKnockoutPage();
+  else if(name==='knockout'){ showPage('league',null); setLeagueTab('knockout', document.querySelector('.league-tab:nth-child(5)')); }
   else if(name==='admin')    renderAdminPage();
   else if(name==='profile')  renderProfilePage();
   else if(name==='events')   renderEventsPage();
@@ -75,6 +75,7 @@ function renderLeaguePage(){
 }
 
 function setLeagueTab(tab,el){
+  if(tab==='knockout') setTimeout(renderKnockoutPage, 0);
   S.leagueTab=tab;
   document.querySelectorAll('.league-tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.league-sub').forEach(s=>s.style.display='none');
