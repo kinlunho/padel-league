@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Tracker — GO Park Padel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0a0f1e; --surface:#111827; --border:rgba(255,255,255,0.08);
+      --text:#fff; --muted:rgba(255,255,255,0.4);
+      --brand:#6366f1; --gold:#F5C842; --accent:#4ade80; --red:#f87171;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+    .header{padding:16px 24px;border-bottom:1px solid var(--border);
+      display:flex;justify-content:space-between;align-items:center;}
+    .header-title{font-size:20px;font-weight:700;}
+    .header-sub{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;}
+    .live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);
+      display:inline-block;animation:pulse 1.5s infinite;margin-right:6px;}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    .tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto;}
+    .tab{padding:12px 20px;border:none;background:transparent;color:var(--muted);
+      cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;
+      border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+    .tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+    .panel{display:none;padding:20px 24px;max-width:800px;margin:0 auto;}
+    .panel.active{display:block;}
+    .event-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+    .event-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);
+      background:transparent;color:var(--muted);cursor:pointer;font-size:12px;transition:all 0.2s;}
+    .event-btn.active{background:rgba(99,102,241,0.15);border-color:var(--brand);color:var(--text);}
+    /* Standings */
+    .standings-row{display:grid;grid-template-columns:36px 1fr 60px 44px 44px;
+      gap:8px;align-items:center;padding:10px 12px;border-radius:8px;margin-bottom:6px;}
+    .standings-row.top{background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.2);}
+    .standings-row.mid{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);}
+    /* Courts */
+    .court-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin-bottom:12px;}
+    .court-label{font-size:10px;letter-spacing:2px;color:var(--gold);margin-bottom:10px;font-family:'Space Mono',monospace;}
+    .court-teams{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;}
+    .team-name{font-size:16px;font-weight:700;}
+    .team-name.right{text-align:right;}
+    .vs{color:var(--muted);font-size:14px;font-weight:700;text-align:center;}
+    .score{font-family:'Space Mono',monospace;font-size:24px;font-weight:700;color:var(--accent);text-align:center;}
+    /* Results */
+    .result-row{display:grid;grid-template-columns:28px 1fr auto 1fr;gap:10px;
+      align-items:center;padding:10px 4px;border-bottom:1px solid var(--border);}
+    .empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px;}
+    .spinner{text-align:center;padding:60px;color:var(--muted);}
+    select{background:var(--surface);color:var(--text);border:1px solid var(--border);
+      padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:16px;width:100%;}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">🎾 GO Park × The One</div>
+    <div class="header-sub">PADEL SUMMER LEAGUE 2026</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span class="live-dot"></span>
+    <span style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;">LIVE</span>
+  </div>
+</div>
+
+<!-- Context selector -->
+<div style="padding:12px 24px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+  <select id="context-select" onchange="loadContext()" style="width:auto;margin:0;">
+    <option value="">Loading...</option>
+  </select>
+  <div id="last-updated" style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('standings',this)">🏆 Standings</button>
+  <button class="tab" onclick="showTab('courts',this)">🎾 On Court</button>
+  <button class="tab" onclick="showTab('results',this)">📋 Results</button>
+</div>
+
+<div id="panel-standings" class="panel active"><div class="spinner">Loading...</div></div>
+<div id="panel-courts"   class="panel"></div>
+<div id="panel-results"  class="panel"></div>
+
+<div style="text-align:center;padding:20px;font-size:10px;color:var(--muted);
+  font-family:'Space Mono',monospace;">
+  padel-league-hk.web.app · Updates automatically
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBHOuq5uoHBa7VzMO6bqf6H3O2gSTUZhFc",
+  authDomain: "padel-league-hk.firebaseapp.com",
+  projectId: "padel-league-hk",
+  storageBucket: "padel-league-hk.appspot.com",
+  messagingSenderId: "406071113262",
+  appId: "1:406071113262:web:9c2e04ffa1d4a46044e3bd"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let _currentContext = null; // {type:'event'|'tournament', id, name}
+let _unsub = null;
+let _activeTab = 'standings';
+let _eventData = null;
+let _eventRounds = [];
+let _tournamentData = null;
+let _tournamentMatches = [];
+
+// ── Load available events and tournaments ─────────────────────────────────────
+async function init(){
+  const [evSnap, tnSnap] = await Promise.all([
+    db.collection('events').orderBy('date','desc').limit(20).get(),
+    db.collection('tournaments').orderBy('date','desc').limit(20).get()
+  ]);
+
+  const options = [];
+  tnSnap.forEach(d=>{
+    const t={id:d.id,...d.data()};
+    if(t.status!=='registration')
+      options.push({type:'tournament',id:t.id,name:`🏆 ${t.name}`,status:t.status});
+  });
+  evSnap.forEach(d=>{
+    const e={id:d.id,...d.data()};
+    if(e.status==='active'||e.status==='complete')
+      options.push({type:'event',id:e.id,name:`${e.type==='mexicano'?'🔄':e.type==='americano'?'🤝':'👑'} ${e.name}`,status:e.status});
+  });
+
+  const sel = document.getElementById('context-select');
+  if(!options.length){
+    sel.innerHTML='<option>No active events or tournaments</option>';
+    return;
+  }
+  sel.innerHTML = options.map((o,i)=>
+    `<option value="${o.type}:${o.id}">${o.name} [${o.status}]</option>`
+  ).join('');
+
+  loadContext();
+}
+
+async function loadContext(){
+  const val = document.getElementById('context-select')?.value;
+  if(!val) return;
+  const [type, id] = val.split(':');
+
+  // Unsubscribe previous listener
+  if(_unsub){ _unsub(); _unsub=null; }
+
+  if(type==='event') subscribeEvent(id);
+  else subscribeToTournament(id);
+}
+
+// ── Event subscription ────────────────────────────────────────────────────────
+function subscribeEvent(id){
+  _unsub = db.collection('events').doc(id).onSnapshot(async snap=>{
+    if(!snap.exists) return;
+    _eventData = {id:snap.id,...snap.data()};
+    // Load rounds
+    const rSnap = await db.collection('events').doc(id).collection('rounds').get();
+    _eventRounds = rSnap.docs.map(d=>({id:d.id,...d.data()}));
+    updateTimestamp();
+    render();
+  });
+}
+
+// ── Tournament subscription ───────────────────────────────────────────────────
+function subscribeToTournament(id){
+  _unsub = db.collection('tournaments').doc(id).onSnapshot(async snap=>{
+    if(!snap.exists) return;
+    _tournamentData = {id:snap.id,...snap.data()};
+    const mSnap = await db.collection('tournaments').doc(id).collection('matches').get();
+    _tournamentMatches = mSnap.docs.map(d=>({id:d.id,...d.data()}));
+    updateTimestamp();
+    render();
+  });
+}
+
+function updateTimestamp(){
+  const el = document.getElementById('last-updated');
+  if(el) el.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function showTab(tab, btn){
+  _activeTab = tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`panel-${tab}`)?.classList.add('active');
+  render();
+}
+
+// ── Main render dispatcher ────────────────────────────────────────────────────
+function render(){
+  const val = document.getElementById('context-select')?.value||'';
+  const isEvent = val.startsWith('event:');
+  if(isEvent) renderEvent();
+  else renderTournament();
+}
+
+// ── EVENT RENDER ──────────────────────────────────────────────────────────────
+function renderEvent(){
+  const e = _eventData;
+  if(!e) return;
+
+  const standings = e.standings
+    ? Object.values(e.standings).filter(s=>!s.withdrawn)
+        .sort((a,b)=>b.points-a.points||b.gamesWon-a.gamesWon)
+    : [];
+
+  const medals = ['🥇','🥈','🥉'];
+
+  if(_activeTab==='standings'){
+    const el = document.getElementById('panel-standings');
+    el.innerHTML = !standings.length
+      ? '<div class="empty">No results yet</div>'
+      : `<div style="display:grid;gap:6px;margin-top:4px;">
+          <div style="display:grid;grid-template-columns:36px 1fr 60px 44px 44px;
+            gap:8px;padding:0 12px 8px;font-size:10px;color:var(--muted);letter-spacing:1px;">
+            <div></div><div>PLAYER</div>
+            <div style="text-align:center;">PTS</div>
+            <div style="text-align:center;">GW</div>
+            <div style="text-align:center;">GL</div>
+          </div>
+          ${standings.map((s,i)=>`
+            <div class="standings-row ${i<3?'top':'mid'}">
+              <div style="font-size:${i<3?'20px':'14px'};text-align:center;
+                color:${i===0?'#F5C842':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)'};">
+                ${medals[i]||i+1}
+              </div>
+              <div style="font-size:${i<3?'15px':'13px'};font-weight:${i<3?700:400};">${s.name}</div>
+              <div style="text-align:center;font-size:${i<3?'20px':'15px'};font-weight:700;
+                color:${i===0?'#F5C842':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--brand)'};">${s.points}</div>
+              <div style="text-align:center;color:var(--accent);font-size:13px;">${s.gamesWon}</div>
+              <div style="text-align:center;color:var(--red);font-size:13px;">${s.gamesLost}</div>
+            </div>`).join('')}
+        </div>`;
+  }
+
+  if(_activeTab==='courts'){
+    const el = document.getElementById('panel-courts');
+    const isKing = e.type==='king';
+    if(isKing){
+      const courts = (e.courts||[]).sort((a,b)=>a.level-b.level);
+      el.innerHTML = courts.map(c=>`
+        <div class="court-card" style="border-left:3px solid ${c.courtType==='king'?'var(--gold)':'var(--brand)'};">
+          <div class="court-label">${c.courtType==='king'?'👑 KING COURT':`⚔ CHALLENGER ${c.level}`}
+            <span style="color:${c.status==='playing'?'var(--accent)':'var(--muted)'};">
+              · ${c.status==='playing'?'LIVE':'WAITING'}
+            </span>
+          </div>
+          ${c.status==='playing'?`
+          <div class="court-teams">
+            <div><div class="team-name">${c.currentPairA?.name||'—'}</div></div>
+            <div class="vs">VS</div>
+            <div><div class="team-name right">${c.currentPairB?.name||'—'}</div></div>
+          </div>`:
+          c.pendingChallenger?`<div style="color:var(--gold);font-size:14px;font-weight:600;">
+            ⏳ ${c.pendingChallenger.name} — challenger ready
+          </div>`:
+          '<div style="color:var(--muted);font-size:13px;">Waiting for next pair...</div>'}
+        </div>`).join('')
+      + ((e.queue||[]).length?`
+        <div style="margin-top:16px;">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">QUEUE</div>
+          ${(e.queue||[]).map((p,i)=>`
+            <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span style="color:var(--muted);font-size:12px;width:20px;">${i+1}</span>
+              <span style="font-size:13px;color:${i===0?'var(--accent)':'var(--text)'};">${p.name}</span>
+              ${i===0?'<span style="font-size:10px;color:var(--accent);">Next up</span>':''}
+            </div>`).join('')}
+        </div>`:'');
+    } else {
+      const currentRound = _eventRounds.find(r=>r.roundNumber===e.currentRound);
+      if(!currentRound){ el.innerHTML='<div class="empty">No active round</div>'; return; }
+      const active = (currentRound.matches||[]).filter(m=>!m.isBye);
+      const bye    = (currentRound.matches||[]).filter(m=>m.isBye);
+      el.innerHTML = `<div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;">
+          ROUND ${e.currentRound}${e.totalRounds?' OF '+e.totalRounds:''}</div>`
+        + active.map(m=>`
+          <div class="court-card">
+            <div class="court-label">COURT ${m.court||'?'}${m.status==='confirmed'?' · ✓ DONE':''}</div>
+            <div class="court-teams">
+              <div><div class="team-name">${m.teamANames||'—'}</div></div>
+              <div>${m.status==='confirmed'
+                ?`<div class="score">${m.scoreA}–${m.scoreB}</div>`
+                :'<div class="vs">VS</div>'}</div>
+              <div><div class="team-name right">${m.teamBNames||'—'}</div></div>
+            </div>
+          </div>`).join('')
+        + bye.map(m=>`
+          <div style="padding:12px;border:1px dashed var(--border);border-radius:8px;margin-bottom:10px;">
+            <span style="color:var(--muted);font-size:12px;">⏸ ${m.byeNames||''} — sitting out</span>
+          </div>`).join('');
+    }
+  }
+
+  if(_activeTab==='results'){
+    const el = document.getElementById('panel-results');
+    const isKing = e.type==='king';
+    if(isKing){
+      const games = [...(e.games||[])].reverse();
+      el.innerHTML = !games.length ? '<div class="empty">No games yet</div>'
+        : games.map(g=>`
+          <div class="result-row">
+            <div style="font-size:12px;">${g.courtType==='king'?'👑':'⚔'}</div>
+            <div style="font-size:12px;color:${g.winner==='A'?'var(--text)':'var(--muted)'};">${g.teamA}</div>
+            <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;
+              color:var(--gold);">${g.scoreA}–${g.scoreB}</div>
+            <div style="font-size:12px;text-align:right;color:${g.winner==='B'?'var(--text)':'var(--muted)'};">${g.teamB}</div>
+          </div>`).join('');
+    } else {
+      const history = _eventRounds
+        .flatMap(r=>(r.matches||[]).filter(m=>!m.isBye&&m.status==='confirmed')
+          .map(m=>({...m,roundNumber:r.roundNumber})))
+        .reverse();
+      el.innerHTML = !history.length ? '<div class="empty">No completed matches yet</div>'
+        : history.map(m=>{
+          const aWon = m.scoreA>m.scoreB;
+          return `<div class="result-row">
+            <div style="font-size:10px;color:var(--muted);">R${m.roundNumber}</div>
+            <div style="font-size:12px;color:${aWon?'var(--text)':'var(--muted)'};">${m.teamANames}</div>
+            <div style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;
+              color:var(--gold);">${m.scoreA}–${m.scoreB}</div>
+            <div style="font-size:12px;text-align:right;color:${!aWon?'var(--text)':'var(--muted)'};">${m.teamBNames}</div>
+          </div>`;
+        }).join('');
+    }
+  }
+}
+
+// ── TOURNAMENT RENDER ─────────────────────────────────────────────────────────
+function renderTournament(){
+  const t = _tournamentData;
+  if(!t) return;
+
+  if(_activeTab==='standings'){
+    const el = document.getElementById('panel-standings');
+    const groups = t.groups||[];
+    if(!groups.length){ el.innerHTML='<div class="empty">Group stage not started yet</div>'; return; }
+
+    el.innerHTML = groups.map(group=>{
+      const standings = calcGroupStandings(t, group.groupId);
+      return `<div style="margin-bottom:20px;">
+        <div style="font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">
+          GROUP ${group.name}
+        </div>
+        ${standings.map((s,i)=>`
+          <div class="standings-row ${i<(t.advancePerGroup||2)?'top':'mid'}">
+            <div style="font-size:14px;text-align:center;color:${i<(t.advancePerGroup||2)?'var(--accent)':'var(--muted)'};">
+              ${i<(t.advancePerGroup||2)?'↑':i+1}
+            </div>
+            <div style="font-size:13px;font-weight:600;">${s.name}</div>
+            <div style="text-align:center;font-family:'Space Mono',monospace;font-weight:700;color:var(--brand);">${s.points}</div>
+            <div style="text-align:center;color:var(--accent);font-size:12px;">${s.won}</div>
+            <div style="text-align:center;color:var(--red);font-size:12px;">${s.lost}</div>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  if(_activeTab==='courts'){
+    const el = document.getElementById('panel-courts');
+    const pending = _tournamentMatches.filter(m=>m.status==='pending'&&m.pairA&&m.pairB);
+    if(!pending.length){ el.innerHTML='<div class="empty">No matches in progress</div>'; return; }
+    el.innerHTML = pending.map(m=>`
+      <div class="court-card">
+        <div class="court-label">${m.phase==='ko'?'⚔ KNOCKOUT':'🎾 GROUP '+m.groupId?.split('_').pop()?.toUpperCase()}</div>
+        <div class="court-teams">
+          <div><div class="team-name">${m.pairA?.name||'TBD'}</div></div>
+          <div class="vs">VS</div>
+          <div><div class="team-name right">${m.pairB?.name||'TBD'}</div></div>
+        </div>
+      </div>`).join('');
+  }
+
+  if(_activeTab==='results'){
+    const el = document.getElementById('panel-results');
+    const done = _tournamentMatches.filter(m=>m.status==='confirmed').reverse();
+    if(!done.length){ el.innerHTML='<div class="empty">No completed matches yet</div>'; return; }
+    el.innerHTML = done.map(m=>{
+      const score = (m.score?.sets||[]).map(s=>`${s.a}-${s.b}`).join(' ');
+      const st = m.score?.superTb?` [${m.score.superTb.a}-${m.score.superTb.b}]`:'';
+      return `<div class="result-row">
+        <div style="font-size:10px;color:var(--muted);">${m.phase==='ko'?'KO':'G'}</div>
+        <div style="font-size:12px;color:${m.winner==='A'?'var(--text)':'var(--muted)'};">${m.pairA?.name||'—'}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;
+          color:var(--gold);text-align:center;">${score}${st}</div>
+        <div style="font-size:12px;text-align:right;color:${m.winner==='B'?'var(--text)':'var(--muted)'};">${m.pairB?.name||'—'}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── Standings calculation (client-side, no auth needed) ───────────────────────
+function calcGroupStandings(t, groupId){
+  const group = (t.groups||[]).find(g=>g.groupId===groupId);
+  if(!group) return [];
+  const standings = {};
+  group.pairIds.forEach(pid=>{
+    const reg = (t.registrations||[]).find(r=>r.pairId===pid);
+    standings[pid]={pairId:pid,
+      name:reg?`${reg.player1.name} & ${reg.player2.name}`:pid,
+      played:0,won:0,lost:0,setsWon:0,setsLost:0,points:0};
+  });
+  _tournamentMatches.filter(m=>m.status==='confirmed'&&m.phase==='group'&&m.groupId===groupId)
+    .forEach(m=>{
+      const sA=standings[m.pairAId], sB=standings[m.pairBId];
+      if(!sA||!sB) return;
+      sA.played++; sB.played++;
+      if(m.winner==='A'){sA.won++;sA.points+=3;sB.lost++;}
+      else{sB.won++;sB.points+=3;sA.lost++;}
+    });
+  return Object.values(standings).sort((a,b)=>b.points-a.points||b.won-a.won);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

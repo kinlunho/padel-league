@@ -6,6 +6,7 @@ service cloud.firestore {
     function isSignedIn()  { return request.auth != null; }
     function role()        { return request.auth.token.role; }
     function isAdmin()     { return isSignedIn() && role() == 'admin'; }
+    function isPublic()    { return true; } // unauthenticated read for live tracker
     function isCaptain()   { return isSignedIn() && role() == 'captain'; }
 
     function isMemberOf(teamId) {
@@ -67,21 +68,21 @@ service cloud.firestore {
 
     // ── /tournaments ─────────────────────────────────────────────────────────────
     match /tournaments/{tid} {
-      allow read: if isSignedIn();
+      allow read: if true; // public — live tracker
       allow create, update, delete: if isAdmin();
       match /matches/{mid} {
-        allow read: if isSignedIn();
+        allow read: if true; // public
         allow write: if isAdmin();
       }
     }
 
     // ── /events ──────────────────────────────────────────────────────────────────
     match /events/{eventId} {
-      allow read: if isSignedIn();
+      allow read: if true; // public — live tracker
       allow create, update: if isAdmin();
       allow delete: if isAdmin();
       match /rounds/{roundId} {
-        allow read: if isSignedIn();
+        allow read: if true; // public
         allow write: if isAdmin();
       }
     }
@@ -95,7 +96,7 @@ service cloud.firestore {
 
     // ── /config ───────────────────────────────────────────────────────────────
     match /config/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true; // public — needed for live tracker
       allow write: if isAdmin();
     }
 
