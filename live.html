@@ -91,19 +91,11 @@
   padel-league-hk.web.app · Updates automatically
 </div>
 
-<!-- Firebase -->
+<!-- Firebase — loaded from shared config (not committed to repo) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="src/firebase-config.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBHOuq5uoHBa7VzMO6bqf6H3O2gSTUZhFc",
-  authDomain: "padel-league-hk.firebaseapp.com",
-  projectId: "padel-league-hk",
-  storageBucket: "padel-league-hk.appspot.com",
-  messagingSenderId: "406071113262",
-  appId: "1:406071113262:web:9c2e04ffa1d4a46044e3bd"
-};
-firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let _currentContext = null; // {type:'event'|'tournament', id, name}
