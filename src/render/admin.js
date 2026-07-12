@@ -503,6 +503,80 @@ function renderAdminSeason(){
       </div>
     </div>
 
+    <!-- Schedule config -->
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:12px;">📅 Schedule Configuration</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label class="form-label" style="font-size:10px;">Match Start Time</label>
+          <input class="form-input" id="cfg-match-start"
+            type="time" value="${c.matchStartTime||'19:00'}">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:10px;">Match End Time</label>
+          <input class="form-input" id="cfg-match-end"
+            type="time" value="${c.matchEndTime||'23:00'}">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:10px;">Match Duration (minutes)</label>
+          <input class="form-input" id="cfg-match-duration"
+            type="number" min="30" max="180" value="${c.matchDuration||60}">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:10px;">Courts Available</label>
+          <input class="form-input" id="cfg-courts"
+            type="number" min="1" max="20" value="${c.courts||2}">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label" style="font-size:10px;">Play Days</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((day,i)=>`
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;">
+              <input type="checkbox" value="${i}"
+                ${(c.playDays||[6,0]).includes(i)?'checked':''}
+                onchange="saveScheduleConfig()"
+                id="cfg-playday-${i}">
+              ${day}
+            </label>`).join('')}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="saveScheduleConfig()">Save Schedule Config</button>
+      <span id="schedule-config-status" style="font-size:10px;color:var(--accent);margin-left:8px;"></span>
+    </div>
+
+    <!-- Blackout dates -->
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">
+        🚫 Blackout Dates
+        <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;">
+          Weekends skipped during fixture generation
+        </span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input class="form-input" id="blackout-date-input" type="date"
+          min="${c.leagueStart||''}" max="${c.leagueEnd||''}">
+        <input class="form-input" id="blackout-note-input"
+          placeholder="Reason (optional)" style="flex:1;">
+        <button class="btn btn-ghost btn-sm" onclick="addBlackoutDate()">Add</button>
+      </div>
+      <div id="blackout-list">
+        ${!(c.blackoutDates||[]).length
+          ?'<div style="color:var(--muted);font-size:12px;font-style:italic;">No blackout dates set.</div>'
+          :(c.blackoutDates||[]).sort().map(bd=>{
+            const date = typeof bd==='string' ? bd : bd.date;
+            const note = typeof bd==='object' ? bd.note : '';
+            const d = new Date(date+'T00:00:00');
+            const label = d.toLocaleDateString('en-HK',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+            return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+              <div style="font-size:12px;font-weight:600;">🚫 ${label}</div>
+              ${note?`<div style="font-size:11px;color:var(--muted);flex:1;">${note}</div>`:'<div style="flex:1;"></div>'}
+              <button class="btn btn-ghost btn-sm" style="font-size:10px;"
+                onclick="removeBlackoutDate('${date}')">✕</button>
+            </div>`;}).join('')}
+      </div>
+    </div>
+
     <!-- Season rollover danger zone -->
     <details style="margin-top:12px;">
       <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--red);list-style:none;display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid var(--border);">
@@ -780,14 +854,99 @@ async function adminDeleteUser(uid, email){
 }
 
 async function generateAllFixtures(){
-  if(!confirm('Generate fixtures for ALL divisions that do not have them yet? Only do this after registration closes.')) return;
+  // Show schedule preview before generating
+  const c = S.config||{};
+  const allTeams = Object.values(S.teams).filter(t=>t.season===ACTIVE_SEASON);
+  const divGroups = groups();
+  const stats = divGroups.map(g=>{
+    const divTeams = allTeams.filter(t=>t.group===g);
+    return scheduleStats(c, divTeams.length);
+  });
+  const totalMatches = stats.reduce((s,st)=>s+st.totalMatches,0);
+  const totalSlots   = stats[0]?.totalSlots||0;
+  const blackouts    = (c.blackoutDates||[]).length;
+
+  const msg = [
+    `Generate fixtures for ${divGroups.length} division${divGroups.length!==1?'s':''}?`,
+    ``,
+    `Schedule: ${c.matchStartTime||'19:00'}–${c.matchEndTime||'23:00'}, ${c.courts||2} courts, ${c.matchDuration||60} min/match`,
+    `Available slots: ${totalSlots} across ${stats[0]?.nights||0} play nights`,
+    `Total matches to schedule: ${totalMatches}`,
+    blackouts>0?`Blackout dates: ${blackouts}`:null,
+    ``,
+    totalSlots >= totalMatches
+      ? `✓ Feasible — ${totalSlots-totalMatches} spare slots`
+      : `⚠ WARNING: Only ${totalSlots} slots for ${totalMatches} matches — some matches will need manual scheduling`,
+    ``,
+    `Dates will be suggested automatically. Captains can reschedule if needed.`
+  ].filter(l=>l!==null).join('\n');
+
+  if(!confirm(msg)) return;
+
+  // Generate fixtures and assign suggested dates
   let total=0;
-  for(const g of groups()){
+  const allNewMatches = [];
+
+  for(const g of divGroups){
     const has=Object.values(S.matches).some(m=>m.group===g&&m.round);
-    if(!has){ await generateFixtures(g); total++; }
+    if(!has){
+      await generateFixtures(g);
+      total++;
+      // Collect newly generated fixtures for this division
+      const newFixtures = Object.values(S.matches)
+        .filter(m=>m.group===g&&m.season===ACTIVE_SEASON&&!m.date)
+        .map(m=>({id:m.id, t1:m.t1, t2:m.t2}));
+      allNewMatches.push(...newFixtures);
+    }
   }
-  showToast(total>0?`Fixtures generated for ${total} division${total!==1?'s':''}`:'All divisions already have fixtures');
-  renderAdminPage(); // re-render current tab rather than assuming a specific element exists
+
+  if(total===0){
+    showToast('All divisions already have fixtures');
+    return;
+  }
+
+  // Run schedule engine on all new fixtures
+  if(allNewMatches.length>0){
+    const c2 = S.config||{};
+    const result = buildSchedule(allNewMatches, {
+      leagueStart:   c2.leagueStart,
+      leagueEnd:     c2.leagueEnd,
+      matchStartTime:c2.matchStartTime||'19:00',
+      matchEndTime:  c2.matchEndTime||'23:00',
+      matchDuration: c2.matchDuration||60,
+      courts:        c2.courts||2,
+      playDays:      c2.playDays||[6,0],
+      blackoutDates: c2.blackoutDates||[]
+    });
+
+    // Write suggested dates back to matches
+    const batch = db.batch();
+    result.scheduled.forEach(s=>{
+      const ref = db.collection('matches').doc(s.matchId);
+      batch.update(ref, {
+        date:    s.date,
+        time:    s.time,
+        court:   s.court,
+        dateSuggested: true
+      });
+    });
+    await batch.commit();
+
+    const unschCount = result.unscheduled.length;
+    showToast(
+      `Fixtures generated for ${total} division${total!==1?'s':''}. ` +
+      `${result.scheduled.length} matches scheduled` +
+      (unschCount>0?`, ${unschCount} need manual dates`:'.')
+    );
+
+    if(unschCount>0){
+      console.warn('Unscheduled matches:', result.unscheduled);
+    }
+  } else {
+    showToast(`Fixtures generated for ${total} division${total!==1?'s':''}`);
+  }
+
+  renderAdminPage();
 }
 
 
@@ -912,4 +1071,67 @@ function renderAdminTournaments(){
 function adminViewTournament(tid){
   showPage('tournaments', document.querySelector('.nav-tab'));
   setTimeout(()=>openTournamentDetail(tid), 200);
+}
+
+
+// ── Schedule configuration ────────────────────────────────────────────────────
+
+async function saveScheduleConfig(){
+  const start    = document.getElementById('cfg-match-start')?.value||'19:00';
+  const end      = document.getElementById('cfg-match-end')?.value||'23:00';
+  const duration = parseInt(document.getElementById('cfg-match-duration')?.value||60);
+  const courts   = parseInt(document.getElementById('cfg-courts')?.value||2);
+  const playDays = [0,1,2,3,4,5,6].filter(i=>
+    document.getElementById(`cfg-playday-${i}`)?.checked
+  );
+
+  await ConfigDB.save({ matchStartTime:start, matchEndTime:end,
+    matchDuration:duration, courts, playDays });
+
+  const st = document.getElementById('schedule-config-status');
+  if(st){ st.textContent='Saved ✓'; setTimeout(()=>{ st.textContent=''; },2000); }
+}
+
+// ── Blackout dates ────────────────────────────────────────────────────────────
+
+async function addBlackoutDate(){
+  const date = document.getElementById('blackout-date-input')?.value;
+  const note = document.getElementById('blackout-note-input')?.value.trim()||'';
+  if(!date){ showToast('Select a date',true); return; }
+
+  const c = S.config||{};
+  const existing = (c.blackoutDates||[]);
+
+  // Check not already added
+  const alreadyIn = existing.some(bd=>(typeof bd==='string'?bd:bd.date)===date);
+  if(alreadyIn){ showToast('Date already added',true); return; }
+
+  // Check it's a valid play day
+  const d = new Date(date+'T00:00:00');
+  const playDays = c.playDays||[6,0];
+  if(!playDays.includes(d.getDay())){
+    showToast('That date is not a scheduled play day',true); return;
+  }
+
+  const entry = note ? {date, note} : date;
+  await ConfigDB.save({
+    blackoutDates: firebase.firestore.FieldValue.arrayUnion(entry)
+  });
+  document.getElementById('blackout-date-input').value='';
+  document.getElementById('blackout-note-input').value='';
+  showToast(`${date} added as blackout`);
+}
+
+async function removeBlackoutDate(date){
+  const c = S.config||{};
+  const existing = c.blackoutDates||[];
+
+  // Find the entry (string or object)
+  const entry = existing.find(bd=>(typeof bd==='string'?bd:bd.date)===date);
+  if(!entry) return;
+
+  await ConfigDB.save({
+    blackoutDates: firebase.firestore.FieldValue.arrayRemove(entry)
+  });
+  showToast(`${date} removed`);
 }

@@ -26,6 +26,11 @@ const ConfigDB = {
       matchHours:         '7–11 PM',
       entryFee:           'HKD 3,500',
       courts:             2,
+      matchStartTime:     '19:00',   // 7pm
+      matchEndTime:       '23:00',   // 11pm
+      matchDuration:      60,        // minutes per match slot
+      playDays:           [6, 0],    // 6=Saturday, 0=Sunday
+      blackoutDates:      [],        // ['2026-07-18', ...] — weekends skipped entirely
       seasonLocked:       false,  // true once fixtures generated, blocks season change
       // Ordered divisions — highest tier first. nprpMin/nprpMax drive auto-seeding.
       // Admin can add, remove, reorder, and rename divisions from League Setup.
