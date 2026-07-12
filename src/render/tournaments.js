@@ -1396,13 +1396,14 @@ async function createTournament(){
   const endDate   = document.getElementById('tn-enddate')?.value||date;
   const venue     = document.getElementById('tn-venue')?.value.trim()||null;
   const drawSize  = parseInt(document.getElementById('tn-draw')?.value||'16');
+  const courts    = parseInt(document.getElementById('tn-courts')?.value||'2');
   const sets      = parseInt(document.getElementById('tn-sets')?.value||'2');
 
   if(!name){ showToast('Enter tournament name',true); return; }
   if(!date){ showToast('Enter start date',true); return; }
 
   await TournamentsDB.create({
-    name, date, endDate, venue, drawSize,
+    name, date, endDate, venue, drawSize, courts,
     divisions: _tnDivisions,
     format:{ sets, superTb:{target:10, hardCap:null, winBy:2} },
     season: ACTIVE_SEASON
