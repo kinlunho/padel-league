@@ -75,8 +75,6 @@
     <button class="nav-tab" onclick="showPage('league',this);closeMobileNav()">League</button>
     <button class="nav-tab" onclick="showPage('events',this);closeMobileNav()">Events</button>
     <button class="nav-tab" onclick="showPage('tournaments',this);closeMobileNav()">Tournament</button>
-    <button class="nav-tab" onclick="showPage('teams',this);closeMobileNav()">Teams</button>
-    <button class="nav-tab" onclick="showPage('rules',this);closeMobileNav()">Rules</button>
     <button class="nav-tab" id="nav-profile-tab" onclick="showPage('profile',this);closeMobileNav()" style="display:none;">Profile</button>
     <button class="nav-tab" id="nav-admin-tab" onclick="showPage('admin',this);closeMobileNav()" style="display:none;">⚙ Admin</button>
   </div>
@@ -108,7 +106,7 @@
     <div class="hero-dates" id="hero-dates">📅 11 Jul – 4 Oct 2026 &nbsp;·&nbsp; ⏰ Sat &amp; Sun 7–11 PM &nbsp;·&nbsp; 💰 HKD 3,500/team</div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button class="btn btn-primary" id="hero-register-btn" onclick="openModal('registerModal')" style="display:none;">Register Team</button>
-      <button class="btn btn-ghost" onclick="showPage('rules',null)">Rules</button>
+      <button class="btn btn-ghost" onclick="showPage('league',null);setLeagueTab('rules',document.querySelector('.league-tab:nth-child(7)'))">Rules</button>
       <button class="btn btn-ghost" onclick="showPage('league',null);setLeagueTab('schedule',document.querySelector('.league-tab:nth-child(3)'))">Schedule</button>
     </div>
     <div id="viewer-notice" style="display:none;font-size:11px;color:var(--muted);margin-top:12px;">👁 Viewing in read-only mode — contact your coach if you need captain access to schedule matches or submit scores.</div>
@@ -136,6 +134,8 @@
     <button class="group-tab league-tab" onclick="setLeagueTab('schedule',this)">Schedule</button>
     <button class="group-tab league-tab" onclick="setLeagueTab('submit',this)">Submit Score</button>
     <button class="group-tab league-tab" onclick="setLeagueTab('knockout',this)">Knockout</button>
+    <button class="group-tab league-tab" onclick="setLeagueTab('teams',this)">Teams</button>
+    <button class="group-tab league-tab" onclick="setLeagueTab('rules',this)">Rules</button>
   </div>
 
   <!-- Standings sub-page -->
@@ -200,49 +200,17 @@
   </div>
 </div>
   </div>
-</div>
-
-<!-- ══ PROFILE ══ -->
-<div class="page" id="page-profile">
-  <div class="section-title">Player Profiles</div>
-  <div class="group-tabs" id="profile-sub-tabs">
-    <button class="group-tab active profile-tab" onclick="setProfileTab('mine',this)">My Profile</button>
-    <button class="group-tab profile-tab" onclick="setProfileTab('directory',this)">Player Directory</button>
-    <button class="group-tab profile-tab" onclick="setProfileTab('settings',this)">Settings</button>
-  </div>
-  <div id="profile-content" style="margin-top:16px;"></div>
-</div>
-
-<!-- ══ EVENTS ══ -->
-<div class="page" id="page-events">
-  <div class="section-title">Events</div>
-  <div id="events-content"></div>
-</div>
-
-<!-- ══ TOURNAMENTS ══ -->
-<div class="page" id="page-tournaments">
-  <div class="section-title">Tournament</div>
-  <div id="tournaments-content"></div>
-</div>
-
-<!-- ══ TEAMS ══ -->
-<div class="page" id="page-teams">
+  <!-- Teams sub-page -->
+  <div class="league-sub" id="league-sub-teams" style="margin-top:16px;display:none;">
+    <div class="section-title" style="font-size:16px;margin-bottom:12px;">Registered Teams</div>
   <div class="section-title">Registered Teams</div>
   <div class="group-tabs" id="teams-group-tabs"></div>
   <div id="teams-container" class="grid-2"></div>
-</div>
-
-<!-- ══ KNOCKOUT ══ -->
-<!-- ══ ADMIN ══ -->
-<div class="page" id="page-admin">
-  <div class="section-title">⚙ Admin Dashboard
-    <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:8px;" id="admin-season-label"></span>
   </div>
-  <div id="admin-container"></div>
-</div>
 
-<!-- ══ RULES ══ -->
-<div class="page" id="page-rules">
+  <!-- Rules sub-page -->
+  <div class="league-sub" id="league-sub-rules" style="margin-top:16px;display:none;">
+    <div class="section-title" style="font-size:16px;margin-bottom:12px;">Rules & Regulations</div>
   <div class="section-title">Rules & Regulations</div>
   <div class="rules-nav">
     <button class="rules-btn active" onclick="switchRules('overview',this)">Overview</button>
@@ -456,6 +424,613 @@
 
 </div>
 
+<!-- ══ MODALS ══ -->
+
+<!-- Create Event Modal -->
+<div class="modal-overlay" id="createEventModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">Create Event</div>
+    <div class="form-group">
+      <label class="form-label">Event Name</label>
+      <input class="form-input" id="ev-name" placeholder="e.g. Friday Mexicano">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="ev-type" onchange="toggleAmericanoVariant()">
+          <option value="mexicano">Mexicano</option>
+          <option value="americano">Americano</option>
+          <option value="king">King of the Court</option>
+        </select>
+      </div>
+      <div class="form-group" id="ev-variant-wrap" style="display:none;">
+        <label class="form-label">Americano Variant</label>
+        <select class="form-select" id="ev-variant">
+          <option value="roundrobin">Round Robin (everyone partners everyone)</option>
+          <option value="fixed">Fixed Rotation (social, predefined schedule)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="ev-date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Courts</label>
+        <input class="form-input" id="ev-courts" type="number" min="1" max="10" value="2">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Rounds</label>
+        <input class="form-input" id="ev-rounds" type="number" min="1" max="20" value="6">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Score Format</label>
+        <select class="form-select" id="ev-score-type">
+          <option value="games">Games to X</option>
+          <option value="timed">Timed (minutes)</option>
+          <option value="sets">Full Sets</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target (games or mins)</label>
+        <input class="form-input" id="ev-score-val" type="number" min="1" value="16">
+      </div>
+    </div>
+    <!-- King of the Court settings — outside grid, full width -->
+    <div id="ev-king-wrap" style="display:none;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="form-group">
+          <label class="form-label">Queue Variant</label>
+          <select class="form-select" id="ev-queue-variant">
+            <option value="winners-stay">Winners Stay (3-game cap)</option>
+            <option value="rotational">Rotational Shuffle</option>
+            <option value="waiting-list">Waiting List</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pair Mode</label>
+          <select class="form-select" id="ev-pair-mode">
+            <option value="fixed">Fixed Pairs (admin sets)</option>
+            <option value="random">Random Pairs (shuffled at start)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Consecutive Win Cap</label>
+          <input class="form-input" id="ev-win-cap" type="number" min="1" max="10" value="3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hard Score Cap</label>
+          <input class="form-input" id="ev-hard-cap" type="number" min="16" max="50" value="20">
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Players</label>
+      <!-- Search box -->
+      <input class="form-input" id="ev-player-search" placeholder="Search by name or email..."
+        oninput="filterEventPlayerPicker()" style="margin-bottom:8px;">
+      <!-- Directory picker -->
+      <div id="ev-player-picker" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);
+        border-radius:6px;background:var(--surface-1);margin-bottom:8px;"></div>
+      <!-- Selected players list -->
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:0.5px;margin-bottom:6px;">Selected (<span id="ev-selected-count">0</span>)
+        <span style="font-weight:400;color:var(--muted);"> — must be even, min 4</span>
+      </div>
+      <div id="ev-selected-players" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;
+        padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);
+        margin-bottom:6px;"></div>
+      <!-- Fallback: manual entry for players not in directory -->
+      <details style="margin-top:4px;">
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;">+ Add player manually (not in directory)</summary>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Name</div>
+            <input class="form-input" id="ev-manual-name" placeholder="Name" style="width:130px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">NPRP</div>
+            <input class="form-input" id="ev-manual-nprp" placeholder="3.5" type="number" min="1" max="7" step="0.5" style="width:70px;">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addManualEventPlayer()">Add</button>
+        </div>
+      </details>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;">OPPR updates automatically for directory players after each match.</div>
+    </div>
+    <!-- King pair definition — shown after players selected -->
+    <div id="ev-king-pairing-wrap" style="display:none;margin-top:12px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:6px;">Define Pairs</div>
+      <div id="ev-king-pairing-players"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;"
+        onclick="openKingPairingUI()">👥 Define Pairs</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('createEventModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createPadelEvent()">Create Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Tournament Modal -->
+<div class="modal-overlay" id="createTournamentModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">Create Tournament</div>
+    <div class="form-group">
+      <label class="form-label">Tournament Name</label>
+      <input class="form-input" id="tn-name" placeholder="e.g. GO Park Open 2026">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input class="form-input" id="tn-date" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date</label>
+        <input class="form-input" id="tn-enddate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Venue</label>
+        <input class="form-input" id="tn-venue" placeholder="GO Park Sports">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Draw Size</label>
+        <select class="form-select" id="tn-draw">
+          <option value="8">8 teams</option>
+          <option value="16" selected>16 teams</option>
+          <option value="24">24 teams</option>
+          <option value="32">32 teams</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Courts Available</label>
+        <input class="form-input" id="tn-courts" type="number" min="1" max="20" value="2"
+          placeholder="Number of courts">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Group Stage Format</label>
+        <select class="form-select" id="tn-sets">
+          <option value="1">1 set + super tiebreak</option>
+          <option value="2" selected>2 sets + super tiebreak</option>
+        </select>
+      </div>
+    </div>
+    <!-- Division management -->
+    <div style="margin-top:4px;">
+      <label class="form-label">Divisions <span style="font-weight:400;color:var(--muted);">(optional — leave empty for single draw)</span></label>
+      <div id="tn-divisions-list" style="margin-bottom:8px;min-height:24px;">
+        <div style="color:var(--muted);font-size:11px;font-style:italic;">No divisions added — tournament will use single draw</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div style="flex:1;">
+          <input class="form-input" id="tn-div-name" placeholder="e.g. Men's A, Women's B, Mixed"
+            style="font-size:12px;">
+        </div>
+        <div style="width:80px;">
+          <input class="form-input" id="tn-div-size" type="number" value="16" min="4" max="64"
+            placeholder="Draw" style="font-size:12px;">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="addTournamentDivision()">+ Add</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('createTournamentModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTournament()">Create Tournament</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tournament Score Modal -->
+<div class="modal-overlay" id="tournamentScoreModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">Enter Score</div>
+    <div id="tournament-score-modal-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tournamentScoreModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTournamentScore()">Confirm Score</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tournament Seeding Modal -->
+<div class="modal-overlay" id="tournamentSeedingModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">🌱 Seed Teams</div>
+    <div id="tournament-seeding-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tournamentSeedingModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSeeding(S_tournament?.id)">Confirm Seeding & Generate Groups</button>
+    </div>
+  </div>
+</div>
+
+<!-- Register -->
+<div class="modal-overlay" id="registerModal">
+  <div class="modal">
+    <div class="modal-title">Register Team</div>
+    <div class="form-group">
+      <label class="form-label">Team Name</label>
+      <input class="form-input" id="reg-name" placeholder="e.g. The Smashers">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Captain Email</label>
+      <input class="form-input" id="reg-email" type="email" placeholder="captain@email.com">
+    </div>
+    <div class="form-group" id="reg-group-wrap">
+      <label class="form-label">Division <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(admin assigns)</span></label>
+      <select class="form-select" id="reg-group"></select>
+    </div>
+    <div id="reg-group-notice" style="display:none;font-size:11px;color:var(--muted);margin-bottom:12px;padding:8px;background:var(--surface2);border-radius:6px;">
+      📋 Division will be assigned by the league admin after reviewing your registration.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Players <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(min 2, max 5, ages 18–65)</span></label>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Phone numbers are used for the league-wide WhatsApp broadcast group. NPRP is your self-rated skill level from <a href="https://www.nprp.io" target="_blank" style="color:var(--brand);">playbypoint</a> (1.0 beginner → 7.0 elite) — used by admin to assign your division.</div>
+      <div id="reg-player-fields">
+        <div class="player-row"><span class="player-badge">P1 ★</span><input class="form-input" placeholder="Player 1 name — Captain" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"><select class="form-select nprp-select" style="flex:0.6;"><option value="">NPRP</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option><option value="5.5">5.5</option><option value="6.0">6.0</option><option value="6.5">6.5</option><option value="7.0">7.0</option></select></div>
+        <div class="player-row"><span class="player-badge">P2</span><input class="form-input" placeholder="Player 2 name" style="flex:1.4;"><input class="form-input" placeholder="Phone e.g. 9123 4567" style="flex:1;"><select class="form-select nprp-select" style="flex:0.6;"><option value="">NPRP</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option><option value="5.5">5.5</option><option value="6.0">6.0</option><option value="6.5">6.5</option><option value="7.0">7.0</option></select></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:6px;" id="add-player-btn" onclick="addPlayerField()">+ Add Player</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('registerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="registerTeam()">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Match -->
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal">
+    <div class="modal-title">Schedule a Match</div>
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">Both captains must have agreed before scheduling. Coach confirmation locks the slot.</div>
+    <div class="form-group">
+      <label class="form-label">Group</label>
+      <select class="form-select" id="sch-group" onchange="updateSchTeams()"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Home Team</label>
+      <select class="form-select" id="sch-t1"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Away Team</label>
+      <select class="form-select" id="sch-t2"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <select class="form-select" id="sch-date"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time Slot (Sat/Sun 7–11 PM only)</label>
+      <select class="form-select" id="sch-time">
+        <option value="19:00">19:00 – 20:00</option>
+        <option value="20:00">20:00 – 21:00</option>
+        <option value="21:00">21:00 – 22:00</option>
+        <option value="22:00">22:00 – 23:00</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Court</label>
+      <select class="form-select" id="sch-court">
+        <option value="1">Court 1</option>
+        <option value="2">Court 2</option>
+      </select>
+    </div>
+    <div id="sch-conflict" class="alert alert-warn" style="display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('scheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="scheduleMatch()">Lock Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Claim Slot (for auto-generated fixtures) -->
+<div class="modal-overlay" id="claimSlotModal">
+  <div class="modal">
+    <div class="modal-title">Claim a Slot</div>
+    <div id="claim-match-info" style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:14px;font-weight:600;text-align:center;"></div>
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">First come, first served. Both captains should agree before locking this in.</div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <select class="form-select" id="claim-date"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time Slot (Sat/Sun 7–11 PM only)</label>
+      <select class="form-select" id="claim-time">
+        <option value="19:00">19:00 – 20:00</option>
+        <option value="20:00">20:00 – 21:00</option>
+        <option value="21:00">21:00 – 22:00</option>
+        <option value="22:00">22:00 – 23:00</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Court</label>
+      <select class="form-select" id="claim-court">
+        <option value="1">Court 1</option>
+        <option value="2">Court 2</option>
+      </select>
+    </div>
+    <div id="claim-conflict" class="alert alert-warn" style="display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('claimSlotModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmClaimSlot()">Claim Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Schedule (clicked from an empty court slot — captain path only; admin path reuses the free scheduler) -->
+<div class="modal-overlay" id="quickScheduleModal">
+  <div class="modal">
+    <div class="modal-title">Schedule Into This Slot</div>
+    <div id="quick-slot-info" style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;font-weight:600;text-align:center;"></div>
+    <div class="form-group">
+      <label class="form-label">Which of your open fixtures?</label>
+      <select class="form-select" id="quick-fixture-select"></select>
+    </div>
+    <div class="alert alert-warn" style="margin-bottom:0;font-size:12px;">Only fixtures in a currently-open round for your team are listed.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('quickScheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmQuickSchedule()">Lock This Slot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Roster Modal -->
+<div class="modal-overlay" id="rosterEditModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title" id="roster-edit-title">Edit Roster</div>
+    <div class="form-group">
+      <label class="form-label">Team Email</label>
+      <input class="form-input" id="roster-team-email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Players <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(min 2, max 5)</span></label>
+      <div id="roster-player-list"></div>
+      <button class="btn btn-ghost btn-sm" id="roster-add-btn" style="margin-top:8px;" onclick="addRosterPlayerRow()">+ Add Player</button>
+      <div id="roster-lock-notice" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(251,191,36,0.1);border:1px solid var(--warn);border-radius:6px;font-size:11px;color:var(--warn);">⚠ Roster locked — league has started. Only admins can add players (e.g. injury replacements). Contact <strong>kinlunho@gmail.com</strong>.</div>
+    </div>
+    <div class="alert alert-warn" style="font-size:11px;margin-bottom:0;">Each unclaimed player has a code — share it with them so they can link their own login. "Regenerate" invalidates the old code if it was shared by mistake.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rosterEditModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRosterEdit()">Save Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <div class="modal-title">My Profile</div>
+    <div class="form-group">
+      <label class="form-label">Display Name</label>
+      <input class="form-input" id="profile-name" placeholder="Your name (shown in nav and to admin)">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">This replaces your email address in the navigation bar.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="profile-email" disabled style="opacity:0.5;cursor:not-allowed;">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Email cannot be changed here — contact an admin.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">New Password <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">(leave blank to keep current)</span></label>
+      <input class="form-input" id="profile-password" type="password" placeholder="Min 6 characters">
+    </div>
+    <p id="profile-msg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('profileModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal (admin only) -->
+<div class="modal-overlay" id="editUserModal">
+  <div class="modal">
+    <div class="modal-title">Edit User Role</div>
+    <div id="edit-user-email-lbl" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-select" id="edit-user-role" onchange="toggleEditUserTeam()">
+        <option value="viewer">Viewer (read-only)</option>
+        <option value="captain">Captain (can schedule + submit scores for their team)</option>
+        <option value="admin">Admin (full access)</option>
+      </select>
+    </div>
+    <div class="form-group" id="edit-user-team-wrap">
+      <label class="form-label" id="edit-user-team-label">Linked Team</label>
+      <select class="form-select" id="edit-user-team">
+        <option value="">— select team —</option>
+      </select>
+    </div>
+    <div class="alert alert-warn" style="font-size:11px;">The user must sign out and back in before the new role takes effect.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUserRole()">Save Role</button>
+    </div>
+  </div>
+</div>
+
+<!-- Score Modal -->
+<div class="modal-overlay" id="scoreModal">
+  <div class="modal">
+    <div class="modal-title" id="score-modal-title">Submit Score</div>
+    <div id="score-match-info" style="background:var(--surface2);border-radius:8px;padding:11px;margin-bottom:16px;font-size:13px;"></div>
+
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">
+
+      ⏱ If 60 min expired before 2 sets were done, enter total games won per team instead and tick the box below.
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <input type="checkbox" id="sc-games-only" onchange="toggleGamesMode()" style="width:16px;height:16px;accent-color:var(--warn);">
+      <label for="sc-games-only" style="font-size:13px;cursor:pointer;">Time expired — entering total games only</label>
+    </div>
+
+    <!-- Sets mode -->
+    <div id="sc-sets-mode">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Set 1</div>
+      <div class="score-row">
+        <div><div class="score-team-lbl" id="sc-lbl-t1a">Team A</div><input class="score-input" id="sc-s1-t1" type="number" min="0" max="7" value="6" oninput="updateScorePreview()"></div>
+        <div class="score-divider">–</div>
+        <div><div class="score-team-lbl" id="sc-lbl-t2a">Team B</div><input class="score-input" id="sc-s1-t2" type="number" min="0" max="7" value="3" oninput="updateScorePreview()"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;margin-top:12px;">Set 2</div>
+      <div class="score-row">
+        <div><div class="score-team-lbl" id="sc-lbl-t1b">Team A</div><input class="score-input" id="sc-s2-t1" type="number" min="0" max="7" value="4" oninput="updateScorePreview()"></div>
+        <div class="score-divider">–</div>
+        <div><div class="score-team-lbl" id="sc-lbl-t2b">Team B</div><input class="score-input" id="sc-s2-t2" type="number" min="0" max="7" value="6" oninput="updateScorePreview()"></div>
+      </div>
+      <div class="stb-box" id="sc-stb-box" style="display:none;">
+        <div class="stb-lbl">⚡ Super Tiebreaker (if time allowed)</div>
+        <div class="score-row">
+          <div><div class="score-team-lbl" id="sc-lbl-t1c">Team A</div><input class="score-input" id="sc-stb-t1" type="number" min="0" max="99" value="10"></div>
+          <div class="score-divider">–</div>
+          <div><div class="score-team-lbl" id="sc-lbl-t2c">Team B</div><input class="score-input" id="sc-stb-t2" type="number" min="0" max="99" value="7"></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">First to 10, win by 2</div>
+      </div>
+    </div>
+
+    <!-- Games-only mode -->
+    <div id="sc-games-mode" style="display:none;">
+      <div style="font-size:10px;color:var(--warn);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Total Games Won (time expired)</div>
+      <div class="score-row">
+        <div><div class="score-team-lbl" id="sc-lbl-t1g">Team A</div><input class="score-input" id="sc-g-t1" type="number" min="0" max="50" value="8"></div>
+        <div class="score-divider">–</div>
+        <div><div class="score-team-lbl" id="sc-lbl-t2g">Team B</div><input class="score-input" id="sc-g-t2" type="number" min="0" max="50" value="7"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Equal games = Draw (1 pt each). Unequal = Win/Loss.</div>
+    </div>
+
+    <div id="sc-result-preview" style="text-align:center;font-size:13px;margin-top:10px;font-weight:600;"></div>
+
+    <div class="form-group" style="margin-top:12px;">
+      <label class="form-label">Notes (optional)</label>
+      <div id="sc-attendance"></div>
+      <input class="form-input" id="sc-notes" placeholder="e.g. rain delay, time expired at 6-3 3-...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('scoreModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitScore()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule -->
+<div class="modal-overlay" id="rescheduleModal">
+  <div class="modal">
+    <div class="modal-title">Request Reschedule</div>
+    <div class="alert alert-warn" style="margin-bottom:14px;font-size:12px;">Both captains + coach must approve. Must be requested at least 48h in advance.</div>
+    <div id="rsch-info" style="background:var(--surface2);border-radius:8px;padding:11px;margin-bottom:16px;font-size:13px;"></div>
+    <div class="form-group"><label class="form-label">New Date</label><select class="form-select" id="rsch-date"></select></div>
+    <div class="form-group">
+      <label class="form-label">New Time Slot</label>
+      <select class="form-select" id="rsch-time">
+        <option value="19:00">19:00 – 20:00</option>
+        <option value="20:00">20:00 – 21:00</option>
+        <option value="21:00">21:00 – 22:00</option>
+        <option value="22:00">22:00 – 23:00</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Court</label><select class="form-select" id="rsch-court"><option value="1">Court 1</option><option value="2">Court 2</option></select></div>
+    <div class="form-group"><label class="form-label">Reason</label><input class="form-input" id="rsch-reason" placeholder="e.g. player unavailable, rain..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rescheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReschedule()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<!--
+  Loaded as classic scripts (not ES modules) so every function stays in global scope exactly
+  as it did in the original single-file version — every onclick="..." attribute in the HTML
+  above keeps working unmodified. Order matters here: each file must load after anything it
+  calls. src/main.js runs the actual bootstrap (seed data, initial renders) and must be last.
+
+  This is deliberately NOT an ES-module + bundler setup yet. That's the right move once the
+  Firestore SDK work starts — modules and a bundler (Vite) genuinely earn their complexity
+  there. Doing both restructurings in one pass would multiply the risk of breaking something
+  for a request that was specifically "structure first."
+-->
+<script src="src/state.js"></script>
+<script src="src/render/player-picker.js"></script>
+  <script src="src/scheduler.js"></script>
+  <script src="src/scoring.js"></script>
+  <script src="src/data/tournaments.js"></script>
+  <script src="src/render/tournaments.js"></script>
+  <script src="src/oplr.js"></script>
+  <script src="src/mexicano.js"></script>
+  <script src="src/data/events.js"></script>
+  <script src="src/render/events.js"></script>
+  
+<script src="src/router.js"></script>
+<script src="src/roundrobin.js"></script>
+<script src="src/render/home.js"></script>
+<script src="src/render/standings.js"></script>
+<script src="src/render/matches.js"></script>
+<script src="src/render/schedule.js"></script>
+<script src="src/render/teams.js"></script>
+<script src="src/render/submit.js"></script>
+<script src="src/render/knockout.js"></script>
+<script src="src/render/admin.js"></script>
+<script src="src/actions/modals.js"></script>
+<script src="src/actions/score-actions.js"></script>
+<script src="src/actions/slot-actions.js"></script>
+<script src="src/actions/roster.js"></script>
+<script src="src/utils.js"></script>
+<script src="src/data/teams.js"></script>
+<script src="src/data/matches.js"></script>
+<script src="src/data/members.js"></script>
+<script src="src/data/config.js"></script>
+  <script src="src/data/players.js"></script>
+  <script src="src/render/profile.js"></script>
+  
+<script src="src/data/users.js"></script>
+<script src="src/seed-data.js"></script>
+<script src="src/identity.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
+  </div>
+</div>
+
+<!-- ══ PROFILE ══ -->
+<div class="page" id="page-profile">
+  <div class="section-title">Player Profiles</div>
+  <div class="group-tabs" id="profile-sub-tabs">
+    <button class="group-tab active profile-tab" onclick="setProfileTab('mine',this)">My Profile</button>
+    <button class="group-tab profile-tab" onclick="setProfileTab('directory',this)">Player Directory</button>
+    <button class="group-tab profile-tab" onclick="setProfileTab('settings',this)">Settings</button>
+  </div>
+  <div id="profile-content" style="margin-top:16px;"></div>
+</div>
+
+<!-- ══ EVENTS ══ -->
+<div class="page" id="page-events">
+  <div class="section-title">Events</div>
+  <div id="events-content"></div>
+</div>
+
+<!-- ══ TOURNAMENTS ══ -->
+<div class="page" id="page-tournaments">
+  <div class="section-title">Tournament</div>
+  <div id="tournaments-content"></div>
+</div>
+
+<!-- ══ TEAMS ══ -->
+<!-- ══ KNOCKOUT ══ -->
+<!-- ══ ADMIN ══ -->
+<div class="page" id="page-admin">
+  <div class="section-title">⚙ Admin Dashboard
+    <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:8px;" id="admin-season-label"></span>
+  </div>
+  <div id="admin-container"></div>
+</div>
+
+<!-- ══ RULES ══ -->
 <!-- ══ MODALS ══ -->
 
 <!-- Create Event Modal -->

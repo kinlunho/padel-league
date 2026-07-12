@@ -48,6 +48,8 @@ function renderPage(name){
   else if(name==='league')   renderLeaguePage();
   else if(name==='teams')    renderTeamsPage();
   else if(name==='knockout'){ showPage('league',null); setLeagueTab('knockout', document.querySelector('.league-tab:nth-child(5)')); }
+  else if(name==='teams'){    showPage('league',null); setLeagueTab('teams',    document.querySelector('.league-tab:nth-child(6)')); }
+  else if(name==='rules'){    showPage('league',null); setLeagueTab('rules',    document.querySelector('.league-tab:nth-child(7)')); }
   else if(name==='admin')    renderAdminPage();
   else if(name==='profile')  renderProfilePage();
   else if(name==='events')   renderEventsPage();
@@ -77,6 +79,7 @@ function renderLeaguePage(){
 
 function setLeagueTab(tab,el){
   if(tab==='knockout') setTimeout(renderKnockoutPage, 0);
+  if(tab==='teams')    setTimeout(renderTeamsPage, 0);
   S.leagueTab=tab;
   document.querySelectorAll('.league-tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.league-sub').forEach(s=>s.style.display='none');
