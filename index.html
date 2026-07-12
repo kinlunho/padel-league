@@ -647,6 +647,59 @@
   </div>
 </div>
 
+<!-- Tournament Registration Modal -->
+<div class="modal-overlay" id="tournamentRegModal">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title">+ Register Your Pair</div>
+    <input type="hidden" id="treg-modal-tid">
+    <!-- Division selector -->
+    <div id="treg-modal-division-wrap" class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">Division</label>
+      <select class="form-select" id="treg-modal-division"></select>
+    </div>
+    <!-- Player picker -->
+    <div class="form-group">
+      <label class="form-label">Select Players (exactly 2)</label>
+      <input class="form-input" id="treg-player-search"
+        placeholder="Search by name or email..."
+        oninput="_pickerFilter('treg-player-search')"
+        style="margin-bottom:8px;">
+      <div id="treg-player-picker" style="max-height:180px;overflow-y:auto;
+        border:1px solid var(--border);border-radius:6px;
+        background:var(--surface-1);margin-bottom:8px;"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);
+        text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+        Selected (<span id="treg-count">0</span>)
+        <span style="font-weight:400;">— select exactly 2</span>
+      </div>
+      <div id="treg-selected" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;
+        padding:6px;border:1px solid var(--border);border-radius:6px;
+        background:var(--surface-2);margin-bottom:6px;"></div>
+      <details>
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;">
+          + Player not in directory (external)
+        </summary>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">Name</div>
+            <input class="form-input" id="treg-manual-name" placeholder="Name" style="width:140px;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">NPRP</div>
+            <input class="form-input" id="treg-manual-nprp" type="number"
+              min="1" max="7" step="0.5" placeholder="3.5" style="width:70px;">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="addManualTournamentPlayer()">Add</button>
+        </div>
+      </details>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tournamentRegModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTournamentReg()">Register</button>
+    </div>
+  </div>
+</div>
+
 <!-- Tournament Score Modal -->
 <div class="modal-overlay" id="tournamentScoreModal">
   <div class="modal" style="max-width:380px;">

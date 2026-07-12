@@ -128,13 +128,22 @@ function renderTournamentPublicView(container, featured, all){
           ${(t.divisions||[]).map(d=>`<span style="font-size:10px;color:var(--muted);margin-left:8px;">${d.name}</span>`).join('')}
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="openTournamentDetail('${t.id}')">
-        ${isAdminUser()?'Manage →':'Details →'}</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${t.status==='registration'&&!isAdminUser()?`
+          <button class="btn btn-primary btn-sm" onclick="openTournamentRegModal('${t.id}')">
+            + Register Pair
+          </button>`:''
+        }
+        <button class="btn btn-ghost btn-sm" onclick="openTournamentDetail('${t.id}')">
+          ${isAdminUser()?'Manage →':'Details →'}</button>
+      </div>
     </div>
 
     <!-- Sub-tabs -->
     <div class="group-tabs" style="margin-bottom:16px;" id="tournament-public-tabs">
-      <button class="group-tab ${activeSubTab==='standings'?'active':''}"
+      ${t.status==='registration'?`<button class="group-tab ${activeSubTab==='registration'?'active':''}"
+        onclick="setTournamentPublicTab('${t.id}','registration',this)">📋 Registration</button>`:''}
+      <button class="group-tab ${activeSubTab==='standings'||activeSubTab==='registration'&&t.status!=='registration'?'active':''}"
         onclick="setTournamentPublicTab('${t.id}','standings',this)">🏆 Standings</button>
       <button class="group-tab ${activeSubTab==='matches'?'active':''}"
         onclick="setTournamentPublicTab('${t.id}','matches',this)">🎾 Matches</button>
@@ -180,6 +189,75 @@ async function renderTournamentPublicTab(t, tab){
   if(!container) return;
 
   if(!S_tournamentMatches.length) S_tournamentMatches = await TournamentsDB.getMatches(t.id);
+
+  if(tab==='registration'){
+    const regs = t.registrations||[];
+    const confirmed = regs.filter(r=>r.status==='confirmed');
+    const waitlist  = regs.filter(r=>r.status==='waitlist');
+    const myEmail   = firebase.auth().currentUser?.email;
+    const myReg     = myEmail ? regs.find(r=>
+      r.player1?.email===myEmail||r.player2?.email===myEmail) : null;
+
+    container.innerHTML = `
+      <!-- Registration status banner -->
+      <div style="padding:12px 16px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);
+        border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--accent);">📋 Registration Open</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+          ${confirmed.length} of ${t.drawSize||16} spots filled
+          ${waitlist.length?` · ${waitlist.length} on waitlist`:''}
+          ${confirmed.length>=(t.drawSize||16)?'<span style="color:var(--warn);"> · Draw full — waitlist only</span>':''}
+        </div>
+      </div>
+
+      <!-- My registration status -->
+      ${myReg?`<div style="padding:10px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);
+        border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:600;">✓ You're registered</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+          ${myReg.player1?.name} & ${myReg.player2?.name}
+          · <span style="color:${myReg.status==='waitlist'?'var(--warn)':'var(--accent)'};">
+            ${myReg.status==='waitlist'?'Waitlisted':'Confirmed'}
+          </span>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;color:var(--red);"
+          onclick="withdrawFromTournament('${t.id}','${myReg.pairId}')">Withdraw</button>
+      </div>`:''}
+
+      <!-- Register button (if not already registered) -->
+      ${!myReg?`<button class="btn btn-primary" style="width:100%;margin-bottom:16px;"
+        onclick="openTournamentRegModal('${t.id}')">
+        ${confirmed.length>=(t.drawSize||16)?'+ Join Waitlist':'+ Register Your Pair'}
+      </button>`:''}
+
+      <!-- Registered teams by division -->
+      ${(t.divisions||[]).length>0?(t.divisions||[]).map(div=>{
+        const divRegs = confirmed.filter(r=>r.divisionId===div.divisionId);
+        return `<div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;">
+            ${div.name} (${divRegs.length}/${div.drawSize||t.drawSize||16})
+          </div>
+          ${!divRegs.length?'<div style="color:var(--muted);font-size:12px;font-style:italic;">No registrations yet.</div>'
+            :divRegs.map((r,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+              <div style="font-size:11px;color:var(--muted);width:20px;">${r.seed||i+1}</div>
+              <div style="flex:1;font-size:12px;font-weight:600;">${r.player1?.name} & ${r.player2?.name}</div>
+            </div>`).join('')}
+        </div>`;
+      }).join('')
+      :confirmed.map((r,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:11px;color:var(--muted);width:20px;">${r.seed||i+1}</div>
+        <div style="flex:1;font-size:12px;font-weight:600;">${r.player1?.name} & ${r.player2?.name}</div>
+      </div>`).join('')}
+
+      ${waitlist.length?`<div style="margin-top:12px;">
+        <div style="font-size:11px;color:var(--warn);font-weight:700;margin-bottom:6px;">Waitlist</div>
+        ${waitlist.map((r,i)=>`<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);opacity:0.7;">
+          <div style="font-size:11px;color:var(--warn);width:20px;">W${i+1}</div>
+          <div style="font-size:12px;">${r.player1?.name} & ${r.player2?.name}</div>
+        </div>`).join('')}
+      </div>`:''}`;
+    return;
+  }
 
   if(tab==='standings'){
     const groups = t.groups||[];
@@ -347,11 +425,17 @@ function renderTournamentRegistration(container, t){
   const confirmed = regs.filter(r=>r.status==='confirmed')
     .sort((a,b)=>(a.seed||999)-(b.seed||999));
   const waitlist = regs.filter(r=>r.status==='waitlist');
+  // Admin: show full team management panel
+  if(isAdminUser()){
+    renderAdminTournamentTeams(container, t, confirmed, waitlist, isOpen);
+    return;
+  }
+
 
   // Check if current user is already registered
   const myEmail = firebase.auth().currentUser?.email;
   const myReg = myEmail ? regs.find(r=>
-    r.player1.email===myEmail||r.player2.email===myEmail) : null;
+    r.player1?.email===myEmail||r.player2?.email===myEmail) : null;
   const isOpen = t.status==='registration';
   const isFull = confirmed.length >= (t.drawSize||16);
 
@@ -427,7 +511,7 @@ function renderTournamentRegistration(container, t){
         <div style="font-weight:700;font-size:13px;margin-bottom:8px;">
           ${div.name} (${divRegs.length}/${div.drawSize||t.drawSize||16})
           ${isAdminUser()&&isOpen?`<button class="btn btn-ghost btn-sm" style="font-size:10px;margin-left:8px;"
-            onclick="adminAddTeamToDivision('${t.id}','${div.divisionId}')">+ Add</button>`:''}
+            onclick="openTournamentRegModal('${t.id}','${div.divisionId}')">+ Add</button>`:''}
         </div>
         ${!divRegs.length?'<div style="color:var(--muted);font-size:12px;font-style:italic;">No registrations yet.</div>'
           :divRegs.map((r,i)=>`
@@ -720,6 +804,100 @@ async function submitTournamentScore(){
 
 // ── Admin actions ─────────────────────────────────────────────────────────────
 
+// ── Tournament registration modal ────────────────────────────────────────────
+
+function openTournamentRegModal(tid, preSelectDivisionId){
+  const t = S.tournaments[tid];
+  if(!t) return;
+
+  // Populate division selector in modal
+  const divSel = document.getElementById('treg-modal-division-wrap');
+  if(divSel){
+    if((t.divisions||[]).length>0){
+      divSel.style.display='';
+      const sel = document.getElementById('treg-modal-division');
+      if(sel) {
+      sel.innerHTML = (t.divisions||[]).map(d=>{
+        const count = (t.registrations||[]).filter(r=>r.divisionId===d.divisionId&&r.status==='confirmed').length;
+        const full  = count>=(d.drawSize||t.drawSize||16);
+        return `<option value="${d.divisionId}">${d.name} (${count}/${d.drawSize||t.drawSize||16})${full?' — FULL':''}`;
+      }).join('');
+      // Pre-select division if specified
+      if(preSelectDivisionId) sel.value = preSelectDivisionId;
+    }
+    } else {
+      divSel.style.display='none';
+    }
+  }
+
+  // Reset picker
+  if(_tregPicker) _tregPicker.reset();
+  else setTimeout(initTournamentRegPicker, 100);
+
+  // Store tid for submit
+  document.getElementById('treg-modal-tid').value = tid||'';
+  openModal('tournamentRegModal');
+  setTimeout(()=>{
+    if(!_tregPicker) initTournamentRegPicker();
+    else _tregPicker.reset();
+  }, 150);
+}
+
+async function submitTournamentReg(){
+  const tid = document.getElementById('treg-modal-tid')?.value;
+  if(!tid){ showToast('Tournament not found',true); return; }
+
+  const selected = _tregPicker?.getSelected()||[];
+  if(selected.length!==2){ showToast('Select exactly 2 players',true); return; }
+
+  const [p1,p2] = selected;
+  const t = S.tournaments[tid];
+  if(!t) return;
+
+  const divisionId = document.getElementById('treg-modal-division')?.value||null;
+  const division   = (t.divisions||[]).find(d=>d.divisionId===divisionId);
+  const regs       = t.registrations||[];
+  const divRegs    = divisionId
+    ? regs.filter(r=>r.divisionId===divisionId&&r.status==='confirmed')
+    : regs.filter(r=>r.status==='confirmed');
+  const drawSize   = division?.drawSize||t.drawSize||16;
+  const isFull     = divRegs.length>=drawSize;
+  const pairId     = generatePairId(p1.name, p2.name, t.date);
+
+  // Check not already registered
+  const alreadyIn = regs.find(r=>r.pairId===pairId||
+    (r.player1?.email&&r.player1.email===p1.email)||
+    (r.player2?.email&&r.player2.email===p1.email)||
+    (r.player1?.email&&r.player1.email===p2.email)||
+    (r.player2?.email&&r.player2.email===p2.email));
+  if(alreadyIn){ showToast('One or both players already registered',true); return; }
+
+  const newReg = {
+    pairId,
+    registeredAt: new Date().toISOString(),
+    status: isFull?'waitlist':'confirmed',
+    divisionId: divisionId||null,
+    seed: null,
+    player1:{name:p1.name, email:p1.email||null, uid:p1.uid||null, nprp:p1.nprp||null},
+    player2:{name:p2.name, email:p2.email||null, uid:p2.uid||null, nprp:p2.nprp||null}
+  };
+
+  try {
+    await TournamentsDB.update(tid, {
+      registrations: firebase.firestore.FieldValue.arrayUnion(newReg)
+    });
+    closeModal('tournamentRegModal');
+    showToast(isFull
+      ? `Added to waitlist — ${(t.divisions||[]).find(d=>d.divisionId===divisionId)?.name||'draw'} is full`
+      : `Registered! ${p1.name} & ${p2.name}`);
+    S_tournament = await TournamentsDB.get(tid);
+    S.tournaments[tid] = S_tournament;
+    // Refresh public view
+    S._tournamentSubTab = 'registration';
+    renderTournamentsPage();
+  } catch(err){ showToast('Registration failed: '+err.message, true); }
+}
+
 // Tournament registration picker instance
 let _tregPicker = null;
 
@@ -743,6 +921,103 @@ function addManualTournamentPlayer(){
   _tregPicker?.toggle(uid, name, null, nprp);
   document.getElementById('treg-manual-name').value='';
   document.getElementById('treg-manual-nprp').value='';
+}
+
+// ── Admin tournament team management ─────────────────────────────────────────
+
+function renderAdminTournamentTeams(container, t, confirmed, waitlist, isOpen){
+  const hasDivisions = (t.divisions||[]).length > 0;
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;">
+        Teams: ${confirmed.length}/${t.drawSize||16}
+        ${waitlist.length?`<span style="color:var(--warn);font-size:11px;margin-left:8px;">${waitlist.length} waitlisted</span>`:''}
+      </div>
+      ${isOpen?`<button class="btn btn-primary btn-sm"
+        onclick="openTournamentRegModal('${t.id}')">+ Add Team</button>`:''}
+    </div>
+
+    ${hasDivisions?(t.divisions||[]).map(div=>{
+      const divConfirmed = confirmed.filter(r=>r.divisionId===div.divisionId);
+      const divWait = waitlist.filter(r=>r.divisionId===div.divisionId);
+      return `<div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px;">
+          ${div.name} (${divConfirmed.length}/${div.drawSize||t.drawSize||16})
+        </div>
+        ${!divConfirmed.length
+          ?'<div style="color:var(--muted);font-size:12px;font-style:italic;padding:8px 0;">No teams registered.</div>'
+          :divConfirmed.map((r,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+              <div style="font-family:'Space Mono',monospace;font-size:12px;
+                color:${r.seed?'var(--gold)':'var(--muted)'};width:28px;">${r.seed?'#'+r.seed:i+1}</div>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;">${r.player1?.name} & ${r.player2?.name}</div>
+                <div style="font-size:10px;color:var(--muted);">
+                  ${r.player1?.nprp?`NPRP ${r.player1.nprp}`:''}
+                  ${r.player2?.nprp?` / ${r.player2.nprp}`:''}
+                  · ${r.registeredAt?.split('T')[0]||'—'}
+                </div>
+              </div>
+              ${isOpen?`
+                <select class="form-select" style="font-size:11px;width:130px;"
+                  onchange="adminMoveToDivision('${t.id}','${r.pairId}',this.value)">
+                  ${(t.divisions||[]).map(d=>`<option value="${d.divisionId}"
+                    ${d.divisionId===r.divisionId?'selected':''}>${d.name}</option>`).join('')}
+                </select>
+                <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--red);"
+                  onclick="adminRemoveTeam('${t.id}','${r.pairId}')">✕</button>`:''}
+            </div>`).join('')}
+        ${divWait.length?`
+          <div style="margin-top:8px;padding-top:8px;">
+            <div style="font-size:10px;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+              Waitlist (${divWait.length})
+            </div>
+            ${divWait.map((r,i)=>`
+              <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);opacity:0.8;">
+                <div style="font-size:11px;color:var(--warn);width:28px;">W${i+1}</div>
+                <div style="flex:1;font-size:12px;">${r.player1?.name} & ${r.player2?.name}</div>
+                <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--accent);"
+                  onclick="promoteFromWaitlist('${t.id}','${r.pairId}')">Promote</button>
+                <button class="btn btn-ghost btn-sm" style="font-size:10px;"
+                  onclick="adminRemoveTeam('${t.id}','${r.pairId}')">✕</button>
+              </div>`).join('')}
+          </div>`:''}
+      </div>`;
+    }).join('')
+
+    // No divisions — flat list
+    :(!confirmed.length
+      ?'<div style="color:var(--muted);font-size:12px;font-style:italic;">No teams registered yet.</div>'
+      :confirmed.map((r,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="font-family:'Space Mono',monospace;font-size:12px;
+            color:${r.seed?'var(--gold)':'var(--muted)'};width:28px;">${r.seed?'#'+r.seed:i+1}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;">${r.player1?.name} & ${r.player2?.name}</div>
+            <div style="font-size:10px;color:var(--muted);">
+              Registered ${r.registeredAt?.split('T')[0]||'—'}
+            </div>
+          </div>
+          ${isOpen?`<button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--red);"
+            onclick="adminRemoveTeam('${t.id}','${r.pairId}')">✕</button>`:''}
+        </div>`).join('')
+    + (waitlist.length?`
+      <div style="margin-top:16px;">
+        <div style="font-size:10px;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          Waitlist (${waitlist.length})
+        </div>
+        ${waitlist.map((r,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);opacity:0.8;">
+            <div style="font-size:11px;color:var(--warn);width:28px;">W${i+1}</div>
+            <div style="flex:1;font-size:12px;">${r.player1?.name} & ${r.player2?.name}</div>
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;color:var(--accent);"
+              onclick="promoteFromWaitlist('${t.id}','${r.pairId}')">Promote</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;"
+              onclick="adminRemoveTeam('${t.id}','${r.pairId}')">✕</button>
+          </div>`).join('')}
+      </div>`:'')
+    )}`;
 }
 
 async function registerForTournament(tid){
