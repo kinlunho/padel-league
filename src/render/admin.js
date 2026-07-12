@@ -1,39 +1,45 @@
 // src/render/admin.js
 // Admin dashboard — visible only to users with role:'admin'.
 
-let _adminTab = 'active'; // tracks current admin tab
+let _adminTab = 'league'; // tracks current admin tab
 
 function renderAdminPage(){
   if(!isAdminUser()){
     document.getElementById('admin-container').innerHTML='<div class="alert alert-warn">Admin access required.</div>';
     return;
   }
-  // Render the tab shell once, then render the active tab content
   const container = document.getElementById('admin-container');
-  // Count pending items for badge
-  const disputes  = Object.values(S.matches).filter(m=>m.status==='disputed').length;
-  const pending   = Object.values(S.matches).filter(m=>m.status==='pending-confirm').length;
-  const unassigned= Object.values(S.teams).filter(t=>t.group==='Unassigned').length;
-  const activeBadge = (disputes+pending) > 0
+  const disputes   = Object.values(S.matches).filter(m=>m.status==='disputed').length;
+  const pending    = Object.values(S.matches).filter(m=>m.status==='pending-confirm').length;
+  const unassigned = Object.values(S.teams).filter(t=>t.group==='Unassigned').length;
+  const urgentBadge = (disputes+pending)>0
     ? `<span style="background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">${disputes+pending}</span>` : '';
-  const teamBadge = unassigned > 0
+  const teamBadge = unassigned>0
     ? `<span style="background:var(--warn);color:#000;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">${unassigned}</span>` : '';
 
+  // 4 top-level tabs
+  const tabs = [
+    ['league',      `League Management${urgentBadge}${teamBadge}`],
+    ['users',       'User Management'],
+    ['events',      'Event Management'],
+    ['tournaments', 'Tournament Management'],
+  ];
+
+  // Default to league tab
+  if(!['league','users','events','tournaments'].includes(_adminTab)) _adminTab='league';
+
   container.innerHTML = `
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;">
-      ${[
-        ['active',  `Active Season${activeBadge}`],
-        ['teams',   `Team Management${teamBadge}`],
-        ['users',   'User Management'],
-        ['league',  'League Setup'],
-        ['events',  'Event Management'],
-        ['tournaments','Tournament Management'],
-      ].map(([id,label])=>`
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:20px;
+      border-bottom:1px solid var(--border);padding-bottom:0;">
+      ${tabs.map(([id,label])=>`
         <button onclick="switchAdminTab('${id}')" id="atab-${id}"
-          style="padding:8px 16px;border:none;border-bottom:2px solid ${_adminTab===id?'var(--brand)':'transparent'};
-          background:transparent;color:${_adminTab===id?'var(--text)':'var(--muted)'};
-          font-size:13px;font-weight:${_adminTab===id?'600':'400'};cursor:pointer;
-          font-family:'Space Grotesk',sans-serif;white-space:nowrap;transition:all 0.15s;">
+          style="padding:8px 16px;border:none;
+          border-bottom:2px solid ${_adminTab===id?'var(--brand)':'transparent'};
+          background:transparent;
+          color:${_adminTab===id?'var(--text)':'var(--muted)'};
+          font-size:13px;font-weight:${_adminTab===id?'600':'400'};
+          cursor:pointer;font-family:'Space Grotesk',sans-serif;
+          white-space:nowrap;transition:all 0.15s;">
           ${label}
         </button>`).join('')}
     </div>
@@ -50,41 +56,330 @@ function switchAdminTab(tab){
 function renderAdminTabContent(){
   const el = document.getElementById('admin-tab-content');
   if(!el) return;
-  if(_adminTab === 'active'){
-    el.innerHTML = `
-      <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">League Status</div>
-      <div id="admin-status"></div>
-      <div style="font-weight:700;font-size:13px;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px;">Pending Actions</div>
-      <div id="admin-actions"></div>`;
-    renderAdminStatus();
-    renderAdminActions();
-  } else if(_adminTab === 'teams'){
-    el.innerHTML = `
-      <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Team Management</div>
-      <div id="admin-teams-content"></div>`;
-    renderAdminTeams();
+
+  if(_adminTab === 'league'){
+    renderAdminLeagueManagement(el);
   } else if(_adminTab === 'users'){
     el.innerHTML = `
-      <div style="font-weight:700;font-size:13px;color:var(--brand);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">User Management</div>
+      <div style="font-weight:700;font-size:13px;color:var(--brand);
+        text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+        User Management
+      </div>
       <div id="admin-users"></div>`;
     renderAdminUsers();
-  } else if(_adminTab === 'league'){
-    el.innerHTML = `
-      <div style="font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">League Setup</div>
-      <div id="admin-season"></div>`;
-    renderAdminSeason();
-    renderDivisionRows();
   } else if(_adminTab === 'events'){
-    el.innerHTML = `
-      <div style="font-weight:700;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Event Management</div>
-      <div id="admin-events-content"></div>`;
-    renderAdminEvents();
+    renderAdminEventManagement(el);
   } else if(_adminTab === 'tournaments'){
-    el.innerHTML = `
-      <div style="font-weight:700;font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Tournament Management</div>
-      <div id="admin-tournaments-content"></div>`;
-    renderAdminTournaments();
+    renderAdminTournamentManagement(el);
   }
+}
+
+// ── League Management tab — single scrollable page with 3 sections ────────────
+
+function renderAdminLeagueManagement(el){
+  const disputes  = Object.values(S.matches).filter(m=>m.status==='disputed').length;
+  const pending   = Object.values(S.matches).filter(m=>m.status==='pending-confirm').length;
+  const unassigned= Object.values(S.teams).filter(t=>t.group==='Unassigned').length;
+
+  el.innerHTML = `
+    <!-- Section 1: Active Season -->
+    <div style="font-weight:700;font-size:11px;color:var(--brand);text-transform:uppercase;
+      letter-spacing:2px;margin-bottom:12px;padding-bottom:6px;
+      border-bottom:1px solid var(--border);">
+      📊 Active Season
+    </div>
+    <div id="admin-status" style="margin-bottom:8px;"></div>
+    ${disputes+pending>0?`<div style="font-weight:700;font-size:11px;color:var(--warn);
+      text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;margin-top:16px;">
+      ⚠ Pending Actions
+    </div>
+    <div id="admin-actions" style="margin-bottom:20px;"></div>`:''}
+
+    <!-- Section 2: Team Management -->
+    <div style="font-weight:700;font-size:11px;color:var(--brand);text-transform:uppercase;
+      letter-spacing:2px;margin:24px 0 12px;padding-top:16px;padding-bottom:6px;
+      border-top:2px solid var(--border);border-bottom:1px solid var(--border);">
+      👥 Team Management
+      ${unassigned>0?`<span style="background:var(--warn);color:#000;font-size:9px;
+        font-weight:700;padding:1px 5px;border-radius:8px;margin-left:6px;">${unassigned} unassigned</span>`:''}
+    </div>
+    <div id="admin-teams-content" style="margin-bottom:20px;"></div>
+
+    <!-- Section 3: League Setup -->
+    <div style="font-weight:700;font-size:11px;color:var(--brand);text-transform:uppercase;
+      letter-spacing:2px;margin:24px 0 12px;padding-top:16px;padding-bottom:6px;
+      border-top:2px solid var(--border);border-bottom:1px solid var(--border);">
+      ⚙ League Setup
+    </div>
+    <div id="admin-season"></div>`;
+
+  renderAdminStatus();
+  if(disputes+pending>0) renderAdminActions();
+  renderAdminTeams();
+  renderAdminSeason();
+  renderDivisionRows();
+}
+
+// ── Event Management tab ──────────────────────────────────────────────────────
+
+function renderAdminEventManagement(el){
+  const allEvents = Object.values(S.events||{})
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const active    = allEvents.filter(e=>e.status!=='complete');
+  const completed = allEvents.filter(e=>e.status==='complete');
+
+  // Collect all participants across all events
+  const allParticipants = [];
+  allEvents.forEach(e=>{
+    (e.players||[]).forEach(p=>{
+      allParticipants.push({
+        eventId:e.id, eventName:e.name, eventType:e.type,
+        eventDate:e.date, eventStatus:e.status,
+        uid:p.uid, name:p.name, email:p.email, nprp:p.nprp,
+        withdrawn:p.withdrawn
+      });
+    });
+  });
+
+  const formatIcon  = {mexicano:'🔄',americano:'🤝',king:'👑'};
+  const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
+  const statusColor = {open:'var(--accent)',active:'var(--gold)',complete:'var(--muted)'};
+
+  const renderEventRow = e => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;
+      border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;">${formatIcon[e.type]||'🎾'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${e.name}</div>
+        <div style="font-size:11px;color:var(--muted);">
+          ${formatLabel[e.type]||e.type} · ${e.date||'TBC'}
+          · ${(e.players||[]).length} players
+        </div>
+      </div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;
+        background:${statusColor[e.status]}22;color:${statusColor[e.status]};">
+        ${e.status==='complete'?'✓ Done':e.status.toUpperCase()}
+      </span>
+      <button class="btn btn-ghost btn-sm" onclick="adminViewEvent('${e.id}')">Manage →</button>
+    </div>`;
+
+  el.innerHTML = `
+    <!-- Events section -->
+    <div style="font-weight:700;font-size:11px;color:var(--accent);text-transform:uppercase;
+      letter-spacing:2px;margin-bottom:12px;padding-bottom:6px;
+      border-bottom:1px solid var(--border);">
+      🎾 Events
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-bottom:12px;"
+      onclick="openCreateEventModal()">+ Create Event</button>
+    ${active.length
+      ? active.map(renderEventRow).join('')
+      : '<div style="color:var(--muted);font-size:12px;font-style:italic;padding:8px 0;">No active events.</div>'}
+    ${completed.length?`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--border);">
+        Archive (${completed.length})
+      </div>
+      ${completed.map(renderEventRow).join('')}`:''}
+
+    <!-- Participants section -->
+    <div style="font-weight:700;font-size:11px;color:var(--accent);text-transform:uppercase;
+      letter-spacing:2px;margin:28px 0 12px;padding-top:16px;padding-bottom:6px;
+      border-top:2px solid var(--border);border-bottom:1px solid var(--border);">
+      👥 All Participants (${allParticipants.filter(p=>!p.withdrawn).length})
+    </div>
+    ${!allParticipants.length
+      ?'<div style="color:var(--muted);font-size:12px;font-style:italic;">No event participants yet.</div>'
+      :`<div style="margin-bottom:8px;">
+          <input class="form-input" placeholder="Search participants..."
+            oninput="filterAdminParticipants(this.value)"
+            id="admin-participant-search" style="font-size:12px;">
+        </div>
+        <div id="admin-participants-list">
+          ${renderParticipantRows(allParticipants)}
+        </div>`}`;
+}
+
+function renderParticipantRows(participants){
+  const active = participants.filter(p=>!p.withdrawn);
+  if(!active.length) return '<div style="color:var(--muted);font-size:12px;">No participants found.</div>';
+  return active.map(p=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;
+      border-bottom:1px solid var(--border);" class="participant-row">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;">${p.name||p.email||'—'}</div>
+        <div style="font-size:10px;color:var(--muted);">
+          ${p.email||'No email'}
+          ${p.nprp?`· NPRP ${p.nprp}`:''}
+        </div>
+      </div>
+      <div style="text-align:right;min-width:140px;">
+        <div style="font-size:11px;color:var(--muted);">${p.eventName}</div>
+        <div style="font-size:10px;color:var(--muted);">${p.eventDate||'—'}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterAdminParticipants(query){
+  const el = document.getElementById('admin-participants-list');
+  if(!el) return;
+  const allEvents = Object.values(S.events||{});
+  const all = [];
+  allEvents.forEach(e=>{
+    (e.players||[]).forEach(p=>{
+      all.push({...p, eventName:e.name, eventDate:e.date, eventStatus:e.status});
+    });
+  });
+  const q = query.toLowerCase();
+  const filtered = q ? all.filter(p=>
+    (p.name||'').toLowerCase().includes(q)||
+    (p.email||'').toLowerCase().includes(q)||
+    (p.eventName||'').toLowerCase().includes(q)
+  ) : all;
+  el.innerHTML = renderParticipantRows(filtered);
+}
+
+// ── Tournament Management tab ─────────────────────────────────────────────────
+
+function renderAdminTournamentManagement(el){
+  const allTournaments = Object.values(S.tournaments||{})
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const active    = allTournaments.filter(t=>t.status!=='complete');
+  const completed = allTournaments.filter(t=>t.status==='complete');
+
+  // Collect all registered pairs across all tournaments
+  const allPairs = [];
+  allTournaments.forEach(t=>{
+    (t.registrations||[]).forEach(r=>{
+      allPairs.push({
+        tournamentId:t.id, tournamentName:t.name,
+        tournamentDate:t.date, tournamentStatus:t.status,
+        pairId:r.pairId, status:r.status, seed:r.seed,
+        divisionId:r.divisionId,
+        divisionName:(t.divisions||[]).find(d=>d.divisionId===r.divisionId)?.name||null,
+        player1:r.player1, player2:r.player2
+      });
+    });
+  });
+
+  const statusColor = {
+    registration:'var(--accent)',seeding:'var(--gold)',
+    groups:'var(--brand)',knockout:'var(--warn)',complete:'var(--muted)'
+  };
+
+  const renderTRow = t => {
+    const conf = (t.registrations||[]).filter(r=>r.status==='confirmed');
+    const wait = (t.registrations||[]).filter(r=>r.status==='waitlist');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;
+      border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;">🏆</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${t.name}</div>
+        <div style="font-size:11px;color:var(--muted);">
+          ${t.date||'TBC'}${t.endDate&&t.endDate!==t.date?` – ${t.endDate}`:''}
+          ${t.venue?` · ${t.venue}`:''}
+          · ${conf.length}/${t.drawSize||16} teams
+          ${wait.length?`· ${wait.length} waitlisted`:''}
+        </div>
+      </div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;
+        background:${statusColor[t.status]}22;color:${statusColor[t.status]};">
+        ${t.status}
+      </span>
+      <button class="btn btn-ghost btn-sm"
+        onclick="adminViewTournament('${t.id}')">Manage →</button>
+    </div>`;
+  };
+
+  el.innerHTML = `
+    <!-- Tournaments section -->
+    <div style="font-weight:700;font-size:11px;color:var(--gold);text-transform:uppercase;
+      letter-spacing:2px;margin-bottom:12px;padding-bottom:6px;
+      border-bottom:1px solid var(--border);">
+      🏆 Tournaments
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-bottom:12px;"
+      onclick="openCreateTournamentModal()">+ Create Tournament</button>
+    ${active.length
+      ? active.map(renderTRow).join('')
+      : '<div style="color:var(--muted);font-size:12px;font-style:italic;padding:8px 0;">No active tournaments.</div>'}
+    ${completed.length?`
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:1px;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--border);">
+        Archive (${completed.length})
+      </div>
+      ${completed.map(renderTRow).join('')}`:''}
+
+    <!-- Pairs section -->
+    <div style="font-weight:700;font-size:11px;color:var(--gold);text-transform:uppercase;
+      letter-spacing:2px;margin:28px 0 12px;padding-top:16px;padding-bottom:6px;
+      border-top:2px solid var(--border);border-bottom:1px solid var(--border);">
+      👫 Registered Pairs (${allPairs.filter(p=>p.status==='confirmed').length} confirmed
+      ${allPairs.filter(p=>p.status==='waitlist').length>0
+        ?`· ${allPairs.filter(p=>p.status==='waitlist').length} waitlisted`:''})
+    </div>
+    ${!allPairs.length
+      ?'<div style="color:var(--muted);font-size:12px;font-style:italic;">No tournament registrations yet.</div>'
+      :`<div style="margin-bottom:8px;">
+          <input class="form-input" placeholder="Search pairs..."
+            oninput="filterAdminPairs(this.value)"
+            id="admin-pairs-search" style="font-size:12px;">
+        </div>
+        <div id="admin-pairs-list">
+          ${renderPairRows(allPairs)}
+        </div>`}`;
+}
+
+function renderPairRows(pairs){
+  if(!pairs.length) return '<div style="color:var(--muted);font-size:12px;">No pairs found.</div>';
+  return pairs.map(p=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;
+      border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;">
+          ${p.player1?.name||'—'} & ${p.player2?.name||'—'}
+        </div>
+        <div style="font-size:10px;color:var(--muted);">
+          ${p.player1?.nprp?`NPRP ${p.player1.nprp}`:''}
+          ${p.player2?.nprp?` / ${p.player2.nprp}`:''}
+          ${p.divisionName?`· ${p.divisionName}`:''}
+        </div>
+      </div>
+      <div style="text-align:right;min-width:140px;">
+        <div style="font-size:11px;color:var(--muted);">${p.tournamentName}</div>
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:2px;">
+          ${p.seed?`<span style="font-size:10px;color:var(--gold);">#${p.seed}</span>`:''}
+          <span style="font-size:10px;padding:1px 6px;border-radius:8px;
+            background:${p.status==='confirmed'?'rgba(74,222,128,0.15)':'rgba(245,200,66,0.15)'};
+            color:${p.status==='confirmed'?'var(--accent)':'var(--warn)'};">
+            ${p.status==='confirmed'?'Confirmed':'Waitlist'}
+          </span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterAdminPairs(query){
+  const el = document.getElementById('admin-pairs-list');
+  if(!el) return;
+  const allT = Object.values(S.tournaments||{});
+  const all = [];
+  allT.forEach(t=>{
+    (t.registrations||[]).forEach(r=>{
+      all.push({...r,
+        tournamentName:t.name, tournamentDate:t.date,
+        divisionName:(t.divisions||[]).find(d=>d.divisionId===r.divisionId)?.name||null
+      });
+    });
+  });
+  const q = query.toLowerCase();
+  const filtered = q ? all.filter(p=>
+    (p.player1?.name||'').toLowerCase().includes(q)||
+    (p.player2?.name||'').toLowerCase().includes(q)||
+    (p.tournamentName||'').toLowerCase().includes(q)||
+    (p.divisionName||'').toLowerCase().includes(q)
+  ) : all;
+  el.innerHTML = renderPairRows(filtered);
 }
 
 // ── Team Management tab ───────────────────────────────────────────────────────
