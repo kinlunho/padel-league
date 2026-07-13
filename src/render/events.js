@@ -15,21 +15,22 @@ function renderEventsPublicView(container){
   const all = Object.values(S.events||{})
     .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 
-  if(!all.length){
-    container.innerHTML=`<div style="text-align:center;padding:40px 0;">
-      <div style="font-size:32px;margin-bottom:12px;">🎾</div>
-      <div style="font-weight:600;font-size:14px;margin-bottom:6px;">No events yet</div>
-      <div style="color:var(--muted);font-size:13px;">Events will appear here when scheduled.</div>
-    </div>`;
-    return;
-  }
-
-  // Use selected month or default to first active/upcoming
+  // Always show month strip — even with no events, so users see the calendar
   if(!S._evSelectedMonth) S._evSelectedMonth = selectedMonthKey(all);
   const selMonth = S._evSelectedMonth;
-
-  // Filter events for selected month
   const monthEvents = all.filter(e=>(e.date||'').startsWith(selMonth));
+
+  // If no events at all, show month strip with empty state below
+  if(!all.length){
+    container.innerHTML=`
+      ${renderMonthStrip([], selMonth, 'selectEventMonth')}
+      <div style="text-align:center;padding:32px 0;">
+        <div style="font-size:32px;margin-bottom:12px;">🎾</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:6px;">No events yet</div>
+        <div style="color:var(--muted);font-size:13px;">Events will appear here when scheduled.</div>
+      </div>`;
+    return;
+  }
 
   // Find active event for featured sub-tabs (may not be in selected month)
   const active   = all.filter(e=>e.status==='active'||e.status==='open');
