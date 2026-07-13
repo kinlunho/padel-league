@@ -20,9 +20,9 @@ function renderAdminPage(){
   // 4 top-level tabs
   const tabs = [
     ['league',      `League Management${urgentBadge}${teamBadge}`],
-    ['users',       'User Management'],
     ['events',      'Event Management'],
     ['tournaments', 'Tournament Management'],
+    ['users',       'User Management'],
   ];
 
   // Default to league tab
