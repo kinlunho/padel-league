@@ -39,6 +39,10 @@ document.addEventListener('click', e => {
 function showPage(name,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  // Always reset league sub-pages when navigating — prevents bleed-through
+  if(name!=='league'){
+    document.querySelectorAll('.league-sub').forEach(s=>s.style.display='none');
+  }
   document.getElementById('page-'+name).classList.add('active');
   if(btn) btn.classList.add('active');
   renderPage(name);
