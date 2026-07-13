@@ -1,4 +1,74 @@
 // src/render/events.js
+
+// ── Monthly calendar strip ────────────────────────────────────────────────────
+// Shared by Events and Tournaments public views.
+// Usage: renderMonthStrip(containerId, items, selectedMonth, onSelectFn)
+// items: [{date:'2026-07-11', ...}] — any array with a date field
+
+function getMonthsInRange(items){
+  // Build list of months from earliest to latest item date,
+  // padded to cover the full season window
+  const now   = new Date();
+  const dates = items.map(i=>i.date).filter(Boolean).sort();
+  const first = dates.length ? new Date(dates[0]+'T00:00:00')  : now;
+  const last  = dates.length ? new Date(dates[dates.length-1]+'T00:00:00') : now;
+
+  // Always show at least the current month and 3 months ahead
+  const rangeEnd = new Date(Math.max(last, new Date(now.getFullYear(), now.getMonth()+3, 1)));
+
+  const months = [];
+  let d = new Date(first.getFullYear(), first.getMonth(), 1);
+  while(d <= rangeEnd){
+    months.push({
+      key:   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+      label: d.toLocaleDateString('en-HK',{month:'short'}),
+      year:  d.getFullYear(),
+      month: d.getMonth()
+    });
+    d.setMonth(d.getMonth()+1);
+  }
+  return months;
+}
+
+function renderMonthStrip(items, selectedKey, onSelect){
+  const months = getMonthsInRange(items);
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  return `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;" id="month-strip">
+    ${months.map(m=>{
+      const hasItems = items.some(i=>(i.date||'').startsWith(m.key));
+      const isSelected = m.key === selectedKey;
+      const isCurrent  = m.key === currentKey;
+      return `<button onclick="${onSelect}('${m.key}')"
+        style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid
+          ${isSelected?'var(--brand)':isCurrent?'var(--muted)':'var(--border)'};
+        background:${isSelected?'var(--brand)':'transparent'};
+        color:${isSelected?'#fff':hasItems?'var(--text)':'var(--muted)'};
+        font-size:12px;font-weight:${isSelected||hasItems?'600':'400'};
+        cursor:${hasItems?'pointer':'default'};
+        opacity:${hasItems?1:0.4};
+        transition:all 0.15s;white-space:nowrap;">
+        ${m.label}${isCurrent&&!isSelected?'<span style="display:block;width:4px;height:4px;border-radius:50%;background:var(--accent);margin:1px auto 0;"></span>':''}
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+function selectedMonthKey(items){
+  // Default to the month of the first active/upcoming item, or current month
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const upcoming = items
+    .filter(i=>i.date && i.date >= now.toISOString().split('T')[0])
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  if(upcoming.length){
+    const d = upcoming[0].date;
+    return d.slice(0,7);
+  }
+  return currentKey;
+}
 // Events page — Mexicano, Americano, King of the Court
 
 let S_eventDetail = null; // currently viewed event
@@ -17,17 +87,9 @@ function renderEventsPage(){
 
 function renderEventsPublicView(container){
   const all = Object.values(S.events||{})
-    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const active    = all.filter(e=>e.status==='active'||e.status==='open');
-  const completed = all.filter(e=>e.status==='complete');
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 
-  // Show active event front and center, or most recent completed
-  const featured = active[0] || completed[0];
-
-  const formatIcon  = {mexicano:'🔄',americano:'🤝',king:'👑'};
-  const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
-
-  if(!featured){
+  if(!all.length){
     container.innerHTML=`<div style="text-align:center;padding:40px 0;">
       <div style="font-size:32px;margin-bottom:12px;">🎾</div>
       <div style="font-weight:600;font-size:14px;margin-bottom:6px;">No events yet</div>
@@ -36,16 +98,61 @@ function renderEventsPublicView(container){
     return;
   }
 
-  // Sub-tabs for the featured event
-  const subTabs = [
-    {id:'standings',label:'🏆 Standings'},
-    {id:'courts',label:'🎾 On Court'},
-    {id:'results',label:'📋 Results'},
-  ];
+  // Use selected month or default to first active/upcoming
+  if(!S._evSelectedMonth) S._evSelectedMonth = selectedMonthKey(all);
+  const selMonth = S._evSelectedMonth;
+
+  // Filter events for selected month
+  const monthEvents = all.filter(e=>(e.date||'').startsWith(selMonth));
+
+  // Find active event for featured sub-tabs (may not be in selected month)
+  const active   = all.filter(e=>e.status==='active'||e.status==='open');
+  const featured = monthEvents.find(e=>e.status==='active'||e.status==='open')
+    || monthEvents[0]
+    || active[0];
+
+  const formatIcon  = {mexicano:'🔄',americano:'🤝',king:'👑'};
+  const formatLabel = {mexicano:'Mexicano',americano:'Americano',king:'King of the Court'};
+  const statusColor = {open:'var(--accent)',active:'var(--gold)',complete:'var(--muted)'};
 
   const activeSubTab = S._eventSubTab||'standings';
 
   container.innerHTML=`
+    <!-- Month strip -->
+    ${renderMonthStrip(all, selMonth, 'selectEventMonth')}
+
+    <!-- Events this month -->
+    ${monthEvents.length===0
+      ?`<div style="color:var(--muted);font-size:13px;font-style:italic;
+          padding:12px 0;margin-bottom:16px;">No events in this month.</div>`
+      :monthEvents.length===1
+        ?'' // single event — goes straight to featured below
+        :`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+            ${monthEvents.map(e=>{
+              const isSelected = featured&&e.id===featured.id;
+              return `<div onclick="selectEventInMonth('${e.id}')"
+                style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+                border-radius:8px;cursor:pointer;transition:all 0.15s;
+                border:1px solid ${isSelected?'var(--brand)':'var(--border)'};
+                background:${isSelected?'rgba(99,102,241,0.08)':'var(--surface-1)'};">
+                <div style="font-size:18px;">${formatIcon[e.type]||'🎾'}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;">${e.name}</div>
+                  <div style="font-size:11px;color:var(--muted);">
+                    ${formatLabel[e.type]||e.type} · ${e.date||'TBC'}
+                    · ${(e.players||[]).length} players
+                  </div>
+                </div>
+                <span style="font-size:10px;padding:2px 8px;border-radius:10px;
+                  background:${statusColor[e.status]||'var(--border)'}22;
+                  color:${statusColor[e.status]||'var(--muted)'};">
+                  ${e.status==='complete'?'Done':e.status}
+                </span>
+              </div>`;
+            }).join('')}
+          </div>`
+    }
+
     <!-- Featured event header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;
       flex-wrap:wrap;gap:10px;margin-bottom:16px;">
@@ -76,11 +183,11 @@ function renderEventsPublicView(container){
     <div id="event-public-content"></div>
 
     <!-- Past events -->
-    ${completed.length>1?`
+    ${all.filter(e=>e.status==='complete'&&e.id!==featured?.id).length>0?`
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
         letter-spacing:1px;margin-bottom:10px;">Past Events</div>
-      ${completed.filter(e=>e.id!==featured.id).map(e=>`
+      ${all.filter(e=>e.status==='complete'&&e.id!==featured?.id).map(e=>`
         <div style="display:flex;align-items:center;gap:10px;padding:8px 0;
           border-bottom:1px solid var(--border);cursor:pointer;"
           onclick="openEventDetail('${e.id}')">
@@ -1393,4 +1500,28 @@ function setKOTab(tab,el){
   document.querySelectorAll('.ko-tab').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   renderKnockoutPage();
+}
+
+// ── Event month navigation ────────────────────────────────────────────────────
+
+function selectEventMonth(monthKey){
+  S._evSelectedMonth = monthKey;
+  S._eventSubTab = 'standings'; // reset sub-tab on month change
+  const container = document.getElementById('events-content');
+  if(container) renderEventsPublicView(container);
+}
+
+function selectEventInMonth(eventId){
+  // Switch featured event within the month
+  const e = S.events[eventId];
+  if(!e) return;
+  S._evSelectedMonth = (e.date||'').slice(0,7)||S._evSelectedMonth;
+  S._eventSubTab = 'standings';
+  // Re-render with this event as featured
+  const container = document.getElementById('events-content');
+  if(!container) return;
+  const all = Object.values(S.events||{}).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const monthEvents = all.filter(ev=>(ev.date||'').startsWith(S._evSelectedMonth));
+  const featured = e;
+  renderEventsPublicView(container);
 }

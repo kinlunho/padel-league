@@ -100,16 +100,53 @@ function renderTournamentList(container){
 // ── Detail ────────────────────────────────────────────────────────────────────
 
 function renderTournamentPublicView(container, featured, all){
-  const t = featured;
+  // Month strip state
+  if(!S._tnSelectedMonth) S._tnSelectedMonth = selectedMonthKey(all);
+  const selMonth = S._tnSelectedMonth;
+  const monthTournaments = all.filter(t=>(t.date||'').startsWith(selMonth));
+  const t = monthTournaments.find(x=>x.status!=='complete')||monthTournaments[0]||featured;
+
   const completed = all.filter(x=>x.status==='complete');
   const statusColor = {registration:'var(--accent)',seeding:'var(--gold)',
     groups:'var(--brand)',knockout:'var(--warn)',complete:'var(--muted)'};
   const statusLabel = {registration:'Registration Open',seeding:'Seeding',
     groups:'Group Stage',knockout:'Knockout',complete:'Complete'};
-  const setsLabel = t.format?.sets===1?'1 set + super TB':'2 sets + super TB';
+  const setsLabel = t?.format?.sets===1?'1 set + super TB':'2 sets + super TB';
   const activeSubTab = S._tournamentSubTab||'standings';
 
+  if(!t){ container.innerHTML='<div style="color:var(--muted);padding:40px 0;text-align:center;">No tournaments yet.</div>'; return; }
+
   container.innerHTML=`
+    <!-- Month strip -->
+    ${renderMonthStrip(all, selMonth, 'selectTournamentMonth')}
+
+    <!-- Tournaments this month (if more than one) -->
+    ${monthTournaments.length>1?`
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+        ${monthTournaments.map(tn=>{
+          const isSel = tn.id===t.id;
+          return `<div onclick="selectTournamentInMonth('${tn.id}')"
+            style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+            border-radius:8px;cursor:pointer;border:1px solid ${isSel?'var(--brand)':'var(--border)'};
+            background:${isSel?'rgba(99,102,241,0.08)':'var(--surface-1)'};">
+            <div style="font-size:18px;">🏆</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;">${tn.name}</div>
+              <div style="font-size:11px;color:var(--muted);">
+                ${tn.date||'TBC'}${tn.endDate&&tn.endDate!==tn.date?' – '+tn.endDate:''}
+                ${tn.venue?' · '+tn.venue:''}
+              </div>
+            </div>
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;
+              background:${statusColor[tn.status]}22;color:${statusColor[tn.status]};">
+              ${statusLabel[tn.status]||tn.status}
+            </span>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+    ${monthTournaments.length===0?`<div style="color:var(--muted);font-size:13px;font-style:italic;
+      padding:12px 0;margin-bottom:16px;">No tournaments in this month.</div>`:''}
+
     <!-- Featured tournament header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;
       flex-wrap:wrap;gap:10px;margin-bottom:16px;">
@@ -1416,5 +1453,23 @@ async function createTournament(){
     if(document.querySelector('.page.active')?.id==='page-tournaments')
       renderTournamentsPage();
   });
+  renderTournamentsPage();
+}
+
+// ── Tournament month navigation ───────────────────────────────────────────────
+
+function selectTournamentMonth(monthKey){
+  S._tnSelectedMonth = monthKey;
+  S._tournamentSubTab = 'standings';
+  renderTournamentsPage();
+}
+
+function selectTournamentInMonth(tid){
+  const t = S.tournaments[tid];
+  if(!t) return;
+  S._tnSelectedMonth = (t.date||'').slice(0,7)||S._tnSelectedMonth;
+  S._tournamentSubTab = 'registration';
+  S_tournament = null; // stay in list view, let renderTournamentPublicView pick this one
+  // Temporarily override featured by pre-setting month so it picks this tournament
   renderTournamentsPage();
 }
